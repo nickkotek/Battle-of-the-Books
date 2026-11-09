@@ -36,8 +36,10 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
 - **Modes**
   - **Solo**: one player answers the title and the author for each question.
   - **Team**: two to four named teams alternate questions; a scoreboard tracks points.
-  - **Flash cards**: read the question, flip to reveal the answer, mark what you knew.
-- **Round length**: 5, 10, 20, 25 or 50 questions, chosen before each round.
+  - **Flash cards**: one card per book with the title on the front and the author on
+    the back. Click to flip, step through the shuffled deck, no points. Students can
+    also put the author on the front to practice the other direction.
+- **Round length** (solo and team): 5, 10, 20, 25 or 50 questions, chosen before each round.
 - **Answer style** (solo and team): multiple choice (four titles, four authors) or
   type it in. Typed titles accept small spelling slips and ignore subtitles;
   typed authors accept the full name or the last name.
@@ -49,7 +51,7 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
   list of every question that was not fully correct.
 
 Keyboard: Enter checks or advances; in flash-card mode Space flips the card and
-1 to 4 grade it.
+the arrow keys move between cards.
 
 ## Building by hand
 

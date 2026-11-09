@@ -148,18 +148,25 @@ input[type="text"] {
 .verdict .mark { font-weight: 800; }
 .points { font-family: var(--display); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 
-/* Flash cards */
+/* Flash cards: one card per book, title on one side and author on the other */
+.flash-scene { perspective: 1400px; }
 .flash-card {
-  min-height: 260px; display: grid; align-content: center; gap: 16px; text-align: center; padding: 28px 22px;
-  border-radius: var(--radius); border: 2px dashed var(--line); background: var(--card);
+  position: relative; display: block; width: 100%; min-height: 300px; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: center; cursor: pointer; transform-style: preserve-3d; transition: transform .5s;
 }
-.flash-card.flipped { border-style: solid; border-color: var(--ink); }
-.reveal { display: grid; gap: 6px; }
-.reveal .title { font-family: var(--display); font-size: 1.5rem; font-weight: 800; color: var(--ink); }
-.reveal .author { font-size: 1.1rem; font-weight: 700; }
-.grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.grade .btn { padding: 12px 10px; font-size: 0.95rem; }
-.grade .btn small { display: block; font-family: var(--body); font-weight: 700; font-size: 0.8rem; opacity: 0.8; }
+.flash-card.flipped { transform: rotateY(180deg); }
+.flash-card.snap { transition: none; }
+.flash-face {
+  position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 28px 22px;
+  border-radius: var(--radius); border: 2px solid var(--line); background: var(--card);
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.flash-face.back { transform: rotateY(180deg); border-color: var(--accent); }
+.flash-face .big-text { font-family: var(--display); font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 800; line-height: 1.2; text-wrap: balance; }
+.flash-face.back .big-text { color: var(--accent); }
+.flash-face .hint { color: var(--muted); font-size: 0.9rem; }
+.flash-nav { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.deck-done { text-align: center; display: grid; gap: 10px; padding: 36px 22px; border-radius: var(--radius); border: 2px solid var(--accent); }
 
 /* Results */
 .score-hero { display: flex; gap: 24px; align-items: baseline; flex-wrap: wrap; }
@@ -184,7 +191,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 @media (max-width: 560px) {
   body { font-size: 16px; }
   .modes, .options, .breakdown, .team-names { grid-template-columns: 1fr; }
-  .grade { grid-template-columns: repeat(2, 1fr); }
+  .flash-card { min-height: 260px; }
   .card { padding: 18px; }
   .score-hero .big { font-size: 2.4rem; }
 }
@@ -241,12 +248,12 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
           </button>
           <button class="mode" type="button" data-mode="flash" aria-pressed="false">
             <strong>Flash cards</strong>
-            <span>Read, think, flip to reveal, and mark what you knew.</span>
+            <span>Title on the front, author on the back. Flip through every book. No points.</span>
           </button>
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="count-field">
         <span class="eyebrow">How many questions?</span>
         <div class="seg" id="count-picker" role="group" aria-label="Number of questions">
           <button type="button" data-count="5" aria-pressed="false">5</button>
@@ -255,6 +262,15 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
           <button type="button" data-count="25" aria-pressed="false">25</button>
           <button type="button" data-count="50" aria-pressed="false">50</button>
         </div>
+      </div>
+
+      <div class="field" id="flash-field" hidden>
+        <span class="eyebrow">Front of card</span>
+        <div class="seg" id="front-picker" role="group" aria-label="Which side shows first">
+          <button type="button" data-front="title" aria-pressed="true">Title</button>
+          <button type="button" data-front="author" aria-pressed="false">Author</button>
+        </div>
+        <p class="muted small" id="flash-help"></p>
       </div>
 
       <div class="field" id="style-field">
@@ -278,7 +294,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
       </div>
 
       <div class="row between">
-        <p class="muted small">Scoring: <b>+1</b> for the correct title, <b>+1</b> for the correct author.</p>
+        <p class="muted small" id="scoring-note">Scoring: <b>+1</b> for the correct title, <b>+1</b> for the correct author.</p>
         <button class="btn primary big" type="button" id="start-btn">Start round</button>
       </div>
     </section>
@@ -317,30 +333,34 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
     <section id="flash" class="card stack" hidden>
       <div class="stack" style="gap:8px">
         <div class="row between">
-          <span class="eyebrow" id="flash-counter">Card 1 of 10</span>
-          <span class="eyebrow" id="flash-score">0 points</span>
+          <span class="eyebrow" id="flash-counter">Card 1 of 20</span>
+          <span class="eyebrow">Practice only, no points</span>
         </div>
         <div class="progress"><div id="flash-bar"></div></div>
       </div>
-      <div class="flash-card" id="flash-card">
-        <p class="question" id="flash-question"></p>
-        <div class="reveal" id="flash-reveal" hidden>
-          <span class="eyebrow">Answer</span>
-          <span class="title" id="flash-title"></span>
-          <span class="author" id="flash-author"></span>
-        </div>
+      <div class="flash-scene" id="flash-scene">
+        <button class="flash-card" type="button" id="flash-card" aria-label="Flip the card">
+          <span class="flash-face front">
+            <span class="eyebrow" id="flash-front-label">Title</span>
+            <span class="big-text" id="flash-front"></span>
+            <span class="hint">Click or tap to flip</span>
+          </span>
+          <span class="flash-face back">
+            <span class="eyebrow" id="flash-back-label">Author</span>
+            <span class="big-text" id="flash-back"></span>
+            <span class="hint">Click or tap to flip back</span>
+          </span>
+        </button>
       </div>
-      <div class="row between">
-        <button class="btn ghost" type="button" id="flash-quit">End round</button>
-        <button class="btn primary big" type="button" id="flip-btn">Show answer</button>
+      <div class="deck-done" id="deck-done" hidden>
+        <h2>You went through every book</h2>
+        <p class="muted" id="deck-done-text"></p>
       </div>
-      <div class="stack" id="grade-wrap" hidden>
-        <span class="eyebrow">How did you do?</span>
-        <div class="grade">
-          <button class="btn primary" type="button" data-grade="2">Got both<small>+2 points</small></button>
-          <button class="btn" type="button" data-grade="title">Title only<small>+1 point</small></button>
-          <button class="btn" type="button" data-grade="author">Author only<small>+1 point</small></button>
-          <button class="btn ghost" type="button" data-grade="0">Missed it<small>0 points</small></button>
+      <div class="flash-nav">
+        <button class="btn ghost" type="button" id="flash-quit">Back to setup</button>
+        <div class="row">
+          <button class="btn" type="button" id="flash-prev">Previous</button>
+          <button class="btn primary" type="button" id="flash-next">Next card</button>
         </div>
       </div>
     </section>
@@ -487,8 +507,8 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
   }
 
   // ---------- State ----------
-  const settings = { mode: 'solo', count: 10, style: 'choice', teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
-  let game = null; // { order, idx, results:[], teams:[{name,score}], picks:{title,author}, revealed }
+  const settings = { mode: 'solo', count: 10, style: 'choice', flashFront: 'title', teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
+  let game = null; // quiz: { mode, style, order, idx, results, teams, picks, checked }  flash: { mode, deck, idx, flipped, front }
 
   function currentQuestion() { return QUESTIONS[game.order[game.idx]]; }
   function currentTeam() { return game.teams ? game.teams[game.idx % game.teams.length] : null; }
@@ -497,7 +517,7 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
   const screens = ['home', 'play', 'flash', 'results'];
   function show(name) {
     for (const s of screens) $(s).hidden = s !== name;
-    $('status').hidden = name === 'home' || name === 'results';
+    $('status').hidden = name === 'home' || name === 'results' || name === 'flash';
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
@@ -510,8 +530,15 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     pressGroup($('count-picker'), 'count', settings.count);
     pressGroup($('style-picker'), 'style', settings.style);
     pressGroup($('team-count-picker'), 'teams', settings.teamCount);
-    $('style-field').hidden = settings.mode === 'flash';
+    pressGroup($('front-picker'), 'front', settings.flashFront);
+    const flash = settings.mode === 'flash';
+    $('style-field').hidden = flash;
+    $('count-field').hidden = flash;
+    $('scoring-note').hidden = flash;
+    $('flash-field').hidden = !flash;
     $('team-field').hidden = settings.mode !== 'team';
+    $('start-btn').textContent = flash ? 'Start flash cards' : 'Start round';
+    $('flash-help').textContent = `One card for each of the ${BOOKS.length} books, shuffled every time. Click a card to see its other side. Nothing is scored.`;
     $('style-help').textContent = settings.style === 'choice'
       ? 'Choose the title and author from four options each.'
       : 'Type the title and author. Small spelling slips are accepted, and the author’s last name is enough.';
@@ -540,6 +567,10 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     const b = e.target.closest('button[data-style]'); if (!b) return;
     settings.style = b.dataset.style; renderSetup();
   });
+  $('front-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-front]'); if (!b) return;
+    settings.flashFront = b.dataset.front; renderSetup();
+  });
   $('team-count-picker').addEventListener('click', e => {
     const b = e.target.closest('button[data-teams]'); if (!b) return;
     settings.teamCount = Number(b.dataset.teams); renderSetup();
@@ -551,6 +582,12 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
   // ---------- Round lifecycle ----------
   function startRound() {
     if (!QUESTIONS.length) { $('bank-line').textContent = 'No questions loaded. Run build.py to embed the spreadsheet.'; return; }
+    if (settings.mode === 'flash') {
+      // A memorization deck: every book once, in a fresh shuffled order. Nothing is scored.
+      game = { mode: 'flash', deck: shuffle(BOOKS.map((_, i) => i)), idx: 0, flipped: false, front: settings.flashFront };
+      show('flash'); renderFlash();
+      return;
+    }
     game = {
       mode: settings.mode,
       style: settings.style,
@@ -561,11 +598,9 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
         ? Array.from({ length: settings.teamCount }, (_, i) => ({ name: (settings.teamNames[i] || '').trim() || `Team ${i + 1}`, score: 0, color: TEAM_COLORS[i] }))
         : null,
       picks: { title: null, author: null },
-      revealed: false,
       checked: false,
     };
-    if (game.mode === 'flash') { show('flash'); renderFlash(); }
-    else { show('play'); renderPlay(); }
+    show('play'); renderPlay();
   }
   function totalScore() { return game.results.reduce((s, r) => s + (r.titleOk ? 1 : 0) + (r.authorOk ? 1 : 0), 0); }
 
@@ -719,62 +754,67 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
 
   // ---------- Flash cards ----------
   function renderFlash() {
-    const q = currentQuestion();
-    const n = game.order.length;
-    game.revealed = false;
-    $('flash-counter').textContent = `Card ${game.idx + 1} of ${n}`;
-    $('flash-score').textContent = `${totalScore()} of ${n * 2} points`;
-    $('flash-bar').style.width = `${(game.idx / n) * 100}%`;
-    $('flash-question').textContent = q.q;
-    $('flash-title').textContent = q.title;
-    $('flash-author').textContent = q.author;
-    $('flash-reveal').hidden = true;
-    $('flash-card').classList.remove('flipped');
-    $('flip-btn').hidden = false;
-    $('grade-wrap').hidden = true;
-    renderStatus();
-    $('flip-btn').focus();
+    const n = game.deck.length;
+    const done = game.idx >= n;
+    $('flash-scene').hidden = done;
+    $('deck-done').hidden = !done;
+    $('flash-counter').textContent = done ? `All ${n} books seen` : `Card ${game.idx + 1} of ${n}`;
+    $('flash-bar').style.width = `${(Math.min(game.idx, n) / n) * 100}%`;
+    $('flash-prev').disabled = game.idx === 0;
+    $('flash-next').textContent = done ? 'Shuffle and go again' : game.idx === n - 1 ? 'Finish' : 'Next card';
+    if (done) {
+      $('deck-done-text').textContent = `That was all ${n} titles and authors, once each. Shuffle for a new order, or go back to setup.`;
+      $('flash-next').focus();
+      return;
+    }
+    const book = BOOKS[game.deck[game.idx]];
+    const titleFirst = game.front === 'title';
+    $('flash-front-label').textContent = titleFirst ? 'Title' : 'Author';
+    $('flash-back-label').textContent = titleFirst ? 'Author' : 'Title';
+    $('flash-front').textContent = titleFirst ? book.title : book.author;
+    $('flash-back').textContent = titleFirst ? book.author : book.title;
+    // Swap cards without animating the flip back.
+    const card = $('flash-card');
+    card.classList.add('snap');
+    card.classList.toggle('flipped', game.flipped);
+    void card.offsetWidth;
+    card.classList.remove('snap');
   }
   function flip() {
-    if (!game || game.revealed) return;
-    game.revealed = true;
-    $('flash-reveal').hidden = false;
-    $('flash-card').classList.add('flipped');
-    $('flip-btn').hidden = true;
-    $('grade-wrap').hidden = false;
-    $('grade-wrap').querySelector('button').focus();
+    if (!game || game.mode !== 'flash' || game.idx >= game.deck.length) return;
+    game.flipped = !game.flipped;
+    $('flash-card').classList.toggle('flipped', game.flipped);
   }
-  function grade(value) {
-    if (!game || !game.revealed) return;
-    const q = currentQuestion();
-    const titleOk = value === '2' || value === 'title';
-    const authorOk = value === '2' || value === 'author';
-    game.results.push({ q, titleOk, authorOk, titleGiven: null, authorGiven: null, team: null });
-    game.idx++;
-    if (game.idx >= game.order.length) finishRound();
-    else renderFlash();
+  function flashNext() {
+    if (!game || game.mode !== 'flash') return;
+    if (game.idx >= game.deck.length) { game.deck = shuffle(game.deck.slice()); game.idx = 0; }
+    else game.idx++;
+    game.flipped = false;
+    renderFlash();
   }
-  $('flip-btn').addEventListener('click', flip);
+  function flashPrev() {
+    if (!game || game.mode !== 'flash' || game.idx === 0) return;
+    game.idx--;
+    game.flipped = false;
+    renderFlash();
+  }
   $('flash-card').addEventListener('click', flip);
-  $('grade-wrap').addEventListener('click', e => {
-    const b = e.target.closest('button[data-grade]'); if (!b) return;
-    grade(b.dataset.grade);
-  });
-  $('flash-quit').addEventListener('click', finishRound);
+  $('flash-next').addEventListener('click', flashNext);
+  $('flash-prev').addEventListener('click', flashPrev);
+  $('flash-quit').addEventListener('click', () => { game = null; renderSetup(); show('home'); });
 
-  // Keyboard shortcuts: Enter advances; in flash mode Space flips, 1-4 grade.
+  // Keyboard shortcuts: Enter checks or advances; in flash mode Space flips, arrow keys move between cards.
   document.addEventListener('keydown', e => {
     if (!game) return;
     const tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'button' && e.key === 'Enter') return;
+    if (tag === 'input') return;
+    if (tag === 'button' && (e.key === 'Enter' || e.key === ' ')) return; // the focused button handles it
     if (!$('play').hidden) {
       if (e.key === 'Enter') { e.preventDefault(); game.checked ? nextQuestion() : checkAnswers(); }
     } else if (!$('flash').hidden) {
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
-      else if (game.revealed && ['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault();
-        grade(['2', 'title', 'author', '0'][Number(e.key) - 1]);
-      }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); flashNext(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); flashPrev(); }
     }
   });
 
@@ -789,7 +829,7 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     $('results-eyebrow').textContent = answered < planned ? `Round ended early · ${answered} of ${planned} questions answered` : `Round complete · ${planned} questions`;
     $('results-heading').textContent = !answered ? 'No questions answered' : pct === 100 ? 'Perfect round!' : pct >= 80 ? 'Great work!' : pct >= 60 ? 'Solid practice.' : 'Keep at it.';
     $('results-score').textContent = `${score} / ${possible}`;
-    $('results-percent').textContent = possible ? `${pct}% · ${game.mode === 'flash' ? 'flash cards' : game.mode === 'team' ? 'team mode' : 'solo mode'}` : '';
+    $('results-percent').textContent = possible ? `${pct}% · ${game.mode === 'team' ? 'team mode' : 'solo mode'}` : '';
 
     const titles = game.results.filter(r => r.titleOk).length;
     const authors = game.results.filter(r => r.authorOk).length;
@@ -842,10 +882,12 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
   function boot(data) {
     if (data && data.settings) Object.assign(settings, data.settings);
     renderSetup();
-    if (data && data.game && data.game.order && data.game.order.every(i => i < QUESTIONS.length)) {
-      game = data.game;
-      if (game.mode === 'flash') { show('flash'); renderFlash(); }
-      else if (game.idx < game.order.length) { show('play'); renderPlay(); }
+    const g = data && data.game;
+    if (g && g.mode === 'flash' && Array.isArray(g.deck) && g.deck.length === BOOKS.length) {
+      game = g; show('flash'); renderFlash();
+    } else if (g && g.order && g.order.every(i => i < QUESTIONS.length)) {
+      game = g;
+      if (game.idx < game.order.length) { show('play'); renderPlay(); }
       else finishRound();
     } else show('home');
   }
