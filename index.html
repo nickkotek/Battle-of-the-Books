@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battle of the Books Practice</title>
+<style>
+:root { --bg: #ffd60a; --card: #fffbe8; --fg: #0b0b0b; --muted: #4d4733; --line: #d9c45a; --accent: #0b0b0b; --accent-fg: #ffd60a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --card: #1b1a14; --fg: #fff6cc; --muted: #c2b88c; --line: #3d3920; --accent: #ffd60a; --accent-fg: #0b0b0b; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font: 17px/1.5 "Nunito", "Segoe UI", system-ui, sans-serif; padding: 40px max(16px, 4vw); }
+main { max-width: 720px; margin: 0 auto; display: grid; gap: 24px; }
+h1 { margin: 0; font-size: 2rem; line-height: 1.15; }
+p { margin: 0; color: var(--muted); }
+.levels { display: grid; gap: 14px; }
+a.level { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 22px; border-radius: 16px; background: var(--card); color: var(--fg); text-decoration: none; border: 2px solid var(--line); }
+a.level:hover, a.level:focus-visible { border-color: var(--accent); }
+a.level strong { font-size: 1.2rem; }
+a.level span { color: var(--muted); font-size: 0.95rem; }
+.play { padding: 10px 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 800; }
+.soon { opacity: 0.6; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Battle of the Books Practice</h1>
+    <p>Pick your school to start practicing.</p>
+  </div>
+  <div class="levels">
+    <a class="level" href="elementary/"><div><strong>Elementary School Battle of the Books</strong><br><span>1,045 questions, 20 books</span></div><span class="play">Play</span></a>
+    <div class="level soon"><div><strong>High School Battle of the Books</strong><br><span>Coming soon: no question spreadsheet yet</span></div></div>
+    <div class="level soon"><div><strong>Middle School Battle of the Books</strong><br><span>Coming soon: no question spreadsheet yet</span></div></div>
+  </div>
+  <p>Each game draws its questions at random from that school's current question spreadsheet.</p>
+</main>
+</body>
+</html>

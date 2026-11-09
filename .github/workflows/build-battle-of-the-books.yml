@@ -1,0 +1,52 @@
+name: Build Battle of the Books games
+
+# Rebuilds each level's playable game whenever its question spreadsheet
+# (or the game template / build script) changes, and commits the result.
+on:
+  push:
+    paths:
+      - "*/data/**"
+      - "*/config.json"
+      - "template.html"
+      - "build.py"
+      - ".github/workflows/build-battle-of-the-books.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-bob-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install openpyxl
+        run: pip install openpyxl
+
+      - name: Build every level from its spreadsheet
+        run: python3 build.py
+
+      - name: Commit the rebuilt games
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Games already up to date."
+          else
+            git commit -m "Rebuild Battle of the Books games from updated spreadsheets"
+            git push
+          fi

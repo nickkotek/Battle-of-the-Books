@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{GAME_NAME}}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one centered column (max 760px). A slim status bar sits above a single question card; option grids collapse to one column at phone width. */
+:root {
+  --bg: #ffd60a;
+  --card: #fffbe8;
+  --fg: #0b0b0b;
+  --muted: #4d4733;
+  --line: #d9c45a;
+  --accent: #0b0b0b;
+  --accent-fg: #ffd60a;
+  --accent-soft: #ffe97a;
+  --ink: #0b0b0b;
+  --ink-fg: #ffd60a;
+  --ink-soft: #fff0a3;
+  --yellow: #ffd60a;
+  --good: #1f7a32;
+  --good-soft: #e0f3e3;
+  --bad: #b42323;
+  --bad-soft: #fbe3e3;
+  --t1: #1a5fd0;
+  --t2: #c2255c;
+  --t3: #1f8a3a;
+  --t4: #6f42c1;
+  --shadow: 0 10px 30px rgba(60, 45, 0, 0.18);
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0b0b; --card: #1b1a14; --fg: #fff6cc; --muted: #c2b88c; --line: #3d3920;
+    --accent: #ffd60a; --accent-fg: #0b0b0b; --accent-soft: #3b3200;
+    --ink: #ffd60a; --ink-fg: #0b0b0b; --ink-soft: #2e2a0e; --yellow: #ffd60a;
+    --good: #6fcf7f; --good-soft: #15301b; --bad: #f27b7b; --bad-soft: #3a1818;
+    --t1: #6aa5f5; --t2: #f06595; --t3: #69db7c; --t4: #b197fc;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0b0b; --card: #1b1a14; --fg: #fff6cc; --muted: #c2b88c; --line: #3d3920;
+  --accent: #ffd60a; --accent-fg: #0b0b0b; --accent-soft: #3b3200;
+  --ink: #ffd60a; --ink-fg: #0b0b0b; --ink-soft: #2e2a0e; --yellow: #ffd60a;
+  --good: #6fcf7f; --good-soft: #15301b; --bad: #f27b7b; --bad-soft: #3a1818;
+  --t1: #6aa5f5; --t2: #f06595; --t3: #69db7c; --t4: #b197fc;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.5rem; font-weight: 800; }
+h2 { font-size: 1.25rem; font-weight: 700; }
+p { margin: 0; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+.eyebrow { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand-mark { width: 56px; height: 56px; flex: none; display: block; }
+.status { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line); font-weight: 700; font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--team, var(--ink)); }
+.chip.turn { border-color: var(--team, var(--ink)); box-shadow: inset 0 0 0 1px var(--team, var(--ink)); }
+
+/* Cards */
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 22px; box-shadow: var(--shadow);
+}
+.stack { display: grid; gap: 18px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.between { justify-content: space-between; }
+
+/* Mode cards */
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mode {
+  text-align: left; padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--fg);
+  display: grid; gap: 4px; transition: border-color .15s, background .15s;
+}
+.mode:hover { border-color: var(--ink); }
+.mode[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.mode strong { font-family: var(--display); font-size: 1.05rem; }
+.mode span { font-size: 0.88rem; color: var(--muted); }
+
+/* Segmented control */
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); }
+.seg button {
+  padding: 10px 18px; border: 0; background: transparent; color: var(--fg); font-weight: 700; min-width: 56px;
+  border-right: 1px solid var(--line); font-variant-numeric: tabular-nums;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ink-fg); }
+
+.field { display: grid; gap: 8px; }
+.field label, .field .eyebrow { display: block; }
+input[type="text"] {
+  font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); width: 100%;
+}
+.team-names { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.team-names label { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 700; }
+.team-names label::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--team); }
+
+.btn {
+  padding: 12px 22px; border-radius: 12px; border: 2px solid transparent; font-weight: 800; font-family: var(--display); font-size: 1rem;
+  background: var(--ink-soft); color: var(--ink);
+}
+.btn.primary { background: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--fg); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.big { font-size: 1.15rem; padding: 14px 28px; }
+
+/* Play */
+.progress { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.progress > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+.question {
+  font-family: var(--display); font-size: clamp(1.25rem, 2.6vw, 1.6rem); font-weight: 700; line-height: 1.3; text-wrap: pretty;
+}
+.answers { display: grid; gap: 18px; }
+.answer-group { display: grid; gap: 10px; }
+.answer-group .eyebrow { display: flex; align-items: center; gap: 8px; }
+.options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.opt {
+  text-align: left; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--fg);
+  font-weight: 600; line-height: 1.3; transition: border-color .15s, background .15s;
+}
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt[aria-pressed="true"] { border-color: var(--ink); background: var(--ink-soft); }
+.opt.correct { border-color: var(--good); background: var(--good-soft); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt:disabled { cursor: default; }
+.verdict { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; font-weight: 600; }
+.verdict.ok { background: var(--good-soft); border: 1px solid var(--good); }
+.verdict.miss { background: var(--bad-soft); border: 1px solid var(--bad); }
+.verdict .mark { font-weight: 800; }
+.points { font-family: var(--display); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+
+/* Flash cards */
+.flash-card {
+  min-height: 260px; display: grid; align-content: center; gap: 16px; text-align: center; padding: 28px 22px;
+  border-radius: var(--radius); border: 2px dashed var(--line); background: var(--card);
+}
+.flash-card.flipped { border-style: solid; border-color: var(--ink); }
+.reveal { display: grid; gap: 6px; }
+.reveal .title { font-family: var(--display); font-size: 1.5rem; font-weight: 800; color: var(--ink); }
+.reveal .author { font-size: 1.1rem; font-weight: 700; }
+.grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grade .btn { padding: 12px 10px; font-size: 0.95rem; }
+.grade .btn small { display: block; font-family: var(--body); font-weight: 700; font-size: 0.8rem; opacity: 0.8; }
+
+/* Results */
+.score-hero { display: flex; gap: 24px; align-items: baseline; flex-wrap: wrap; }
+.score-hero .big { font-family: var(--display); font-size: 3rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.breakdown { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat { padding: 12px 14px; border-radius: 12px; background: var(--ink-soft); display: grid; gap: 2px; }
+.stat b { font-family: var(--display); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.board { display: grid; gap: 8px; }
+.board-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); }
+.board-row .dot { width: 14px; height: 14px; border-radius: 4px; background: var(--team); flex: none; }
+.board-row b { margin-left: auto; font-variant-numeric: tabular-nums; font-family: var(--display); font-size: 1.2rem; }
+.board-row.winner { border-color: var(--accent); background: var(--accent-soft); }
+.missed { display: grid; gap: 10px; }
+.missed-item { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); display: grid; gap: 6px; font-size: 0.95rem; }
+.missed-item .q { font-weight: 700; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; }
+.tag.ok { background: var(--good-soft); color: var(--good); }
+.tag.miss { background: var(--bad-soft); color: var(--bad); }
+
+footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .modes, .options, .breakdown, .team-names { grid-template-columns: 1fr; }
+  .grade { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 18px; }
+  .score-hero .big { font-size: 2.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <!-- Stack-of-books illustration: original drawing for this project, dedicated to the public domain under CC0 1.0. -->
+      <svg class="brand-mark" viewBox="0 0 64 64" role="img" aria-label="A stack of books">
+        <rect x="5" y="46" width="54" height="12" rx="2.5" fill="var(--yellow)" stroke="var(--fg)" stroke-width="2.5"/>
+        <rect x="11" y="50.5" width="26" height="3" rx="1" fill="var(--fg)"/>
+        <rect x="9" y="33.5" width="46" height="12" rx="2.5" fill="var(--fg)" stroke="var(--fg)" stroke-width="2.5"/>
+        <rect x="16" y="38" width="20" height="3" rx="1" fill="var(--yellow)"/>
+        <g transform="rotate(-6 32 27)">
+          <rect x="8" y="21" width="46" height="12" rx="2.5" fill="var(--card)" stroke="var(--fg)" stroke-width="2.5"/>
+          <rect x="15" y="25.5" width="18" height="3" rx="1" fill="var(--fg)"/>
+        </g>
+        <rect x="14" y="7" width="38" height="12" rx="2.5" fill="var(--yellow)" stroke="var(--fg)" stroke-width="2.5"/>
+        <rect x="20" y="11.5" width="14" height="3" rx="1" fill="var(--fg)"/>
+        <path d="M43 6.5 v11 l3.5 -3 3.5 3 v-11 z" fill="var(--fg)"/>
+      </svg>
+      <div>
+        <h1>{{GAME_NAME}}</h1>
+        <p class="muted small" id="bank-line">Loading question bank…</p>
+      </div>
+    </div>
+    <div class="status" id="status" hidden></div>
+  </header>
+
+  <main>
+    <!-- HOME / SETUP -->
+    <section id="home" class="card stack">
+      <div class="stack" style="gap:6px">
+        <h2>Set up a round</h2>
+        <p class="muted">Pick a mode and how many questions to practice. Every round draws a fresh random order from the full question set, so no two games repeat.</p>
+      </div>
+
+      <div class="field">
+        <span class="eyebrow">Mode</span>
+        <div class="modes" id="mode-picker">
+          <button class="mode" type="button" data-mode="solo" aria-pressed="true">
+            <strong>Solo</strong>
+            <span>One player answers title and author for each question.</span>
+          </button>
+          <button class="mode" type="button" data-mode="team" aria-pressed="false">
+            <strong>Team</strong>
+            <span>Two to four teams take turns. The scoreboard tracks each team.</span>
+          </button>
+          <button class="mode" type="button" data-mode="flash" aria-pressed="false">
+            <strong>Flash cards</strong>
+            <span>Read, think, flip to reveal, and mark what you knew.</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="eyebrow">How many questions?</span>
+        <div class="seg" id="count-picker" role="group" aria-label="Number of questions">
+          <button type="button" data-count="5" aria-pressed="false">5</button>
+          <button type="button" data-count="10" aria-pressed="true">10</button>
+          <button type="button" data-count="20" aria-pressed="false">20</button>
+          <button type="button" data-count="25" aria-pressed="false">25</button>
+          <button type="button" data-count="50" aria-pressed="false">50</button>
+        </div>
+      </div>
+
+      <div class="field" id="style-field">
+        <span class="eyebrow">Answer style</span>
+        <div class="seg" id="style-picker" role="group" aria-label="Answer style">
+          <button type="button" data-style="choice" aria-pressed="true">Multiple choice</button>
+          <button type="button" data-style="typed" aria-pressed="false">Type it in</button>
+        </div>
+        <p class="muted small" id="style-help">Choose the title and author from four options each.</p>
+      </div>
+
+      <div class="field" id="team-field" hidden>
+        <span class="eyebrow">Teams</span>
+        <div class="seg" id="team-count-picker" role="group" aria-label="Number of teams">
+          <button type="button" data-teams="2" aria-pressed="true">2</button>
+          <button type="button" data-teams="3" aria-pressed="false">3</button>
+          <button type="button" data-teams="4" aria-pressed="false">4</button>
+        </div>
+        <div class="team-names" id="team-names"></div>
+        <p class="muted small">Teams alternate questions. Each question is worth 2 points: 1 for the title, 1 for the author.</p>
+      </div>
+
+      <div class="row between">
+        <p class="muted small">Scoring: <b>+1</b> for the correct title, <b>+1</b> for the correct author.</p>
+        <button class="btn primary big" type="button" id="start-btn">Start round</button>
+      </div>
+    </section>
+
+    <!-- PLAY (solo + team) -->
+    <section id="play" class="card stack" hidden>
+      <div class="stack" style="gap:8px">
+        <div class="row between">
+          <span class="eyebrow" id="play-counter">Question 1 of 10</span>
+          <span class="eyebrow" id="play-turn"></span>
+        </div>
+        <div class="progress"><div id="play-bar"></div></div>
+      </div>
+      <p class="question" id="play-question"></p>
+      <div class="answers">
+        <div class="answer-group" id="title-group">
+          <span class="eyebrow">Title</span>
+          <div id="title-answer"></div>
+        </div>
+        <div class="answer-group" id="author-group">
+          <span class="eyebrow">Author</span>
+          <div id="author-answer"></div>
+        </div>
+      </div>
+      <div class="stack" id="feedback" hidden></div>
+      <div class="row between">
+        <button class="btn ghost" type="button" id="quit-btn">End round</button>
+        <div class="row">
+          <button class="btn primary" type="button" id="check-btn">Check answers</button>
+          <button class="btn primary" type="button" id="next-btn" hidden>Next question</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLASH CARDS -->
+    <section id="flash" class="card stack" hidden>
+      <div class="stack" style="gap:8px">
+        <div class="row between">
+          <span class="eyebrow" id="flash-counter">Card 1 of 10</span>
+          <span class="eyebrow" id="flash-score">0 points</span>
+        </div>
+        <div class="progress"><div id="flash-bar"></div></div>
+      </div>
+      <div class="flash-card" id="flash-card">
+        <p class="question" id="flash-question"></p>
+        <div class="reveal" id="flash-reveal" hidden>
+          <span class="eyebrow">Answer</span>
+          <span class="title" id="flash-title"></span>
+          <span class="author" id="flash-author"></span>
+        </div>
+      </div>
+      <div class="row between">
+        <button class="btn ghost" type="button" id="flash-quit">End round</button>
+        <button class="btn primary big" type="button" id="flip-btn">Show answer</button>
+      </div>
+      <div class="stack" id="grade-wrap" hidden>
+        <span class="eyebrow">How did you do?</span>
+        <div class="grade">
+          <button class="btn primary" type="button" data-grade="2">Got both<small>+2 points</small></button>
+          <button class="btn" type="button" data-grade="title">Title only<small>+1 point</small></button>
+          <button class="btn" type="button" data-grade="author">Author only<small>+1 point</small></button>
+          <button class="btn ghost" type="button" data-grade="0">Missed it<small>0 points</small></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="results" class="card stack" hidden>
+      <div class="stack" style="gap:6px">
+        <span class="eyebrow" id="results-eyebrow">Round complete</span>
+        <h2 id="results-heading">Nice work!</h2>
+      </div>
+      <div class="score-hero">
+        <span class="big" id="results-score">0 / 0</span>
+        <span class="muted" id="results-percent"></span>
+      </div>
+      <div class="board" id="board" hidden></div>
+      <div class="breakdown" id="breakdown"></div>
+      <div class="stack" id="missed-wrap" hidden>
+        <span class="eyebrow" id="missed-eyebrow">Review these</span>
+        <div class="missed" id="missed"></div>
+      </div>
+      <div class="row">
+        <button class="btn primary big" type="button" id="again-btn">Play again (new order)</button>
+        <button class="btn ghost" type="button" id="settings-btn">Change settings</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>Question bank from {{SOURCE_FILE}}, rebuilt {{BUILD_DATE}}. Title answers accept small spelling slips; author answers accept the last name.</footer>
+</div>
+
+<script>
+const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
+</script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Question bank ----------
+  const BOOKS = [];
+  const seen = new Set();
+  for (const q of QUESTIONS) {
+    if (!seen.has(q.title)) { seen.add(q.title); BOOKS.push({ title: q.title, author: q.author }); }
+  }
+  const TITLES = BOOKS.map(b => b.title);
+  const AUTHORS = [...new Set(BOOKS.map(b => b.author))];
+  const COUNTS = [5, 10, 20, 25, 50];
+  const TEAM_COLORS = ['var(--t1)', 'var(--t2)', 'var(--t3)', 'var(--t4)'];
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString();
+
+  $('bank-line').textContent = `${fmt(QUESTIONS.length)} questions across ${BOOKS.length} books loaded`;
+
+  // ---------- Randomness ----------
+  function randInt(n) {
+    if (window.crypto && crypto.getRandomValues) {
+      const buf = new Uint32Array(1);
+      const limit = Math.floor(0x100000000 / n) * n; // reject to avoid modulo bias
+      let x;
+      do { crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+      return x % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  // Draws `count` question indexes in a fresh random order from the FULL bank.
+  // A record of past sequences is kept so the same ordering is never served twice on this device.
+  function newOrder(count) {
+    let past = [];
+    try { past = JSON.parse(localStorage.getItem('bob-past-sequences-{{SLUG}}') || '[]'); } catch (e) { past = []; }
+    const pool = QUESTIONS.map((_, i) => i);
+    let order, key, tries = 0;
+    do {
+      order = shuffle(pool.slice()).slice(0, Math.min(count, pool.length));
+      key = order.join(',');
+      tries++;
+    } while (past.includes(key) && tries < 25);
+    past.push(key);
+    if (past.length > 400) past = past.slice(-400);
+    try { localStorage.setItem('bob-past-sequences-{{SLUG}}', JSON.stringify(past)); } catch (e) { /* storage unavailable */ }
+    return order;
+  }
+  function pickOptions(correct, pool, n) {
+    const others = shuffle(pool.filter(v => v !== correct)).slice(0, n - 1);
+    return shuffle([correct, ...others]);
+  }
+
+  // ---------- Answer matching (typed mode) ----------
+  function norm(s) {
+    return String(s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/&/g, 'and')
+      .replace(/[’'"“”!?.,:;()\-–—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function stripThe(s) { return s.replace(/^(the|a|an) /, ''); }
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function close(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const tolerance = Math.max(1, Math.floor(b.length * 0.2));
+    return levenshtein(a, b) <= tolerance;
+  }
+  function titleMatches(input, title) {
+    const a = stripThe(norm(input));
+    if (!a) return false;
+    const full = stripThe(norm(title));
+    const main = stripThe(norm(title.split(':')[0]));
+    return close(a, full) || close(a, main);
+  }
+  function authorMatches(input, author) {
+    const a = norm(input);
+    if (!a) return false;
+    const full = norm(author);
+    const parts = full.split(' ');
+    const last = parts[parts.length - 1];
+    if (a === full || a === last) return true;
+    if (levenshtein(a, full) <= 2) return true;
+    if (last.length >= 4 && levenshtein(a, last) <= 1) return true;
+    // "Lindstrom, Carole" style
+    if (a.replace(/\s+/g, ' ') === parts.slice().reverse().join(' ')) return true;
+    return false;
+  }
+
+  // ---------- State ----------
+  const settings = { mode: 'solo', count: 10, style: 'choice', teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
+  let game = null; // { order, idx, results:[], teams:[{name,score}], picks:{title,author}, revealed }
+
+  function currentQuestion() { return QUESTIONS[game.order[game.idx]]; }
+  function currentTeam() { return game.teams ? game.teams[game.idx % game.teams.length] : null; }
+
+  // ---------- Screens ----------
+  const screens = ['home', 'play', 'flash', 'results'];
+  function show(name) {
+    for (const s of screens) $(s).hidden = s !== name;
+    $('status').hidden = name === 'home' || name === 'results';
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  // ---------- Setup screen ----------
+  function pressGroup(container, attr, value) {
+    for (const b of container.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset[attr] === String(value)));
+  }
+  function renderSetup() {
+    pressGroup($('mode-picker'), 'mode', settings.mode);
+    pressGroup($('count-picker'), 'count', settings.count);
+    pressGroup($('style-picker'), 'style', settings.style);
+    pressGroup($('team-count-picker'), 'teams', settings.teamCount);
+    $('style-field').hidden = settings.mode === 'flash';
+    $('team-field').hidden = settings.mode !== 'team';
+    $('style-help').textContent = settings.style === 'choice'
+      ? 'Choose the title and author from four options each.'
+      : 'Type the title and author. Small spelling slips are accepted, and the author’s last name is enough.';
+    const wrap = $('team-names');
+    wrap.innerHTML = '';
+    for (let i = 0; i < settings.teamCount; i++) {
+      const label = document.createElement('label');
+      label.style.setProperty('--team', TEAM_COLORS[i]);
+      label.append(`Team ${i + 1} name`);
+      const input = document.createElement('input');
+      input.type = 'text'; input.id = `team-name-${i}`; input.value = settings.teamNames[i]; input.maxLength = 24;
+      input.addEventListener('input', () => { settings.teamNames[i] = input.value; });
+      label.append(input);
+      wrap.append(label);
+    }
+  }
+  $('mode-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-mode]'); if (!b) return;
+    settings.mode = b.dataset.mode; renderSetup();
+  });
+  $('count-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-count]'); if (!b) return;
+    settings.count = Number(b.dataset.count); renderSetup();
+  });
+  $('style-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-style]'); if (!b) return;
+    settings.style = b.dataset.style; renderSetup();
+  });
+  $('team-count-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-teams]'); if (!b) return;
+    settings.teamCount = Number(b.dataset.teams); renderSetup();
+  });
+  $('start-btn').addEventListener('click', startRound);
+  $('again-btn').addEventListener('click', startRound);
+  $('settings-btn').addEventListener('click', () => { game = null; renderSetup(); show('home'); });
+
+  // ---------- Round lifecycle ----------
+  function startRound() {
+    if (!QUESTIONS.length) { $('bank-line').textContent = 'No questions loaded. Run build.py to embed the spreadsheet.'; return; }
+    game = {
+      mode: settings.mode,
+      style: settings.style,
+      order: newOrder(settings.count),   // full set reloaded and reshuffled every round
+      idx: 0,
+      results: [],
+      teams: settings.mode === 'team'
+        ? Array.from({ length: settings.teamCount }, (_, i) => ({ name: (settings.teamNames[i] || '').trim() || `Team ${i + 1}`, score: 0, color: TEAM_COLORS[i] }))
+        : null,
+      picks: { title: null, author: null },
+      revealed: false,
+      checked: false,
+    };
+    if (game.mode === 'flash') { show('flash'); renderFlash(); }
+    else { show('play'); renderPlay(); }
+  }
+  function totalScore() { return game.results.reduce((s, r) => s + (r.titleOk ? 1 : 0) + (r.authorOk ? 1 : 0), 0); }
+
+  function renderStatus() {
+    const st = $('status');
+    st.innerHTML = '';
+    if (game.teams) {
+      game.teams.forEach((t, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip' + (i === game.idx % game.teams.length && game.idx < game.order.length ? ' turn' : '');
+        chip.style.setProperty('--team', t.color);
+        chip.innerHTML = `<span class="dot"></span>`;
+        chip.append(`${t.name}: ${t.score}`);
+        st.append(chip);
+      });
+    } else {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = `${totalScore()} / ${game.order.length * 2} points`;
+      st.append(chip);
+    }
+  }
+
+  // ---------- Solo / team play ----------
+  function renderPlay() {
+    const q = currentQuestion();
+    const n = game.order.length;
+    game.picks = { title: null, author: null };
+    game.checked = false;
+    $('play-counter').textContent = `Question ${game.idx + 1} of ${n}`;
+    $('play-bar').style.width = `${(game.idx / n) * 100}%`;
+    const team = currentTeam();
+    $('play-turn').textContent = team ? `${team.name}, you’re up` : '';
+    $('play-turn').style.color = team ? team.color : '';
+    $('play-question').textContent = q.q;
+    $('feedback').hidden = true; $('feedback').innerHTML = '';
+    $('check-btn').hidden = false; $('check-btn').disabled = game.style === 'choice';
+    $('next-btn').hidden = true;
+    $('title-group').classList.remove('ok', 'miss');
+    renderAnswerArea('title', q);
+    renderAnswerArea('author', q);
+    renderStatus();
+    if (game.style === 'typed') $('title-input').focus();
+  }
+  function renderAnswerArea(kind, q) {
+    const host = $(`${kind}-answer`);
+    host.innerHTML = '';
+    if (game.style === 'choice') {
+      const correct = kind === 'title' ? q.title : q.author;
+      const pool = kind === 'title' ? TITLES : AUTHORS;
+      const opts = pickOptions(correct, pool, Math.min(4, pool.length));
+      const grid = document.createElement('div'); grid.className = 'options';
+      for (const o of opts) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'opt'; b.textContent = o; b.dataset.value = o; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => {
+          if (game.checked) return;
+          game.picks[kind] = o;
+          for (const x of grid.children) x.setAttribute('aria-pressed', String(x === b));
+          $('check-btn').disabled = !(game.picks.title && game.picks.author);
+        });
+        grid.append(b);
+      }
+      host.append(grid);
+    } else {
+      const input = document.createElement('input');
+      input.type = 'text'; input.id = `${kind}-input`; input.autocomplete = 'off'; input.spellcheck = false;
+      input.placeholder = kind === 'title' ? 'Type the book title' : 'Type the author (last name is fine)';
+      input.setAttribute('aria-label', kind === 'title' ? 'Title answer' : 'Author answer');
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (kind === 'title') $('author-input').focus(); else checkAnswers();
+        }
+      });
+      host.append(input);
+    }
+  }
+  function checkAnswers() {
+    if (!game || game.checked) return;
+    const q = currentQuestion();
+    let titleGiven, authorGiven;
+    if (game.style === 'choice') {
+      titleGiven = game.picks.title; authorGiven = game.picks.author;
+      if (!titleGiven || !authorGiven) return;
+    } else {
+      titleGiven = $('title-input').value; authorGiven = $('author-input').value;
+    }
+    const titleOk = game.style === 'choice' ? titleGiven === q.title : titleMatches(titleGiven, q.title);
+    const authorOk = game.style === 'choice' ? authorGiven === q.author : authorMatches(authorGiven, q.author);
+    const team = currentTeam();
+    game.results.push({ q, titleOk, authorOk, titleGiven, authorGiven, team: team ? team.name : null });
+    if (team) team.score += (titleOk ? 1 : 0) + (authorOk ? 1 : 0);
+    game.checked = true;
+
+    // Mark the options / inputs
+    if (game.style === 'choice') {
+      for (const kind of ['title', 'author']) {
+        const correct = kind === 'title' ? q.title : q.author;
+        const given = kind === 'title' ? titleGiven : authorGiven;
+        for (const b of $(`${kind}-answer`).querySelectorAll('.opt')) {
+          b.disabled = true;
+          if (b.dataset.value === correct) b.classList.add('correct');
+          else if (b.dataset.value === given) b.classList.add('wrong');
+        }
+      }
+    } else {
+      $('title-input').disabled = true; $('author-input').disabled = true;
+    }
+    const fb = $('feedback');
+    fb.innerHTML = '';
+    fb.append(verdict('Title', titleOk, q.title, titleGiven), verdict('Author', authorOk, q.author, authorGiven));
+    const pts = (titleOk ? 1 : 0) + (authorOk ? 1 : 0);
+    const line = document.createElement('p');
+    line.className = 'points';
+    line.textContent = `+${pts} point${pts === 1 ? '' : 's'}` + (team ? ` for ${team.name}` : '');
+    fb.append(line);
+    fb.hidden = false;
+    $('check-btn').hidden = true;
+    const next = $('next-btn');
+    next.hidden = false;
+    next.textContent = game.idx + 1 >= game.order.length ? 'See results' : 'Next question';
+    next.focus();
+    renderStatus();
+  }
+  function verdict(label, ok, correct, given) {
+    const d = document.createElement('div');
+    d.className = 'verdict ' + (ok ? 'ok' : 'miss');
+    const head = document.createElement('div');
+    head.innerHTML = `<span class="mark">${ok ? '✓' : '✗'}</span> ${label}: `;
+    head.append(ok ? 'correct' : 'not quite');
+    d.append(head);
+    if (!ok) {
+      const ans = document.createElement('div');
+      ans.className = 'small';
+      ans.append(`Correct answer: ${correct}`);
+      if (given && String(given).trim()) ans.append(` · You said: ${String(given).trim()}`);
+      d.append(ans);
+    }
+    return d;
+  }
+  function nextQuestion() {
+    if (!game || !game.checked) return;
+    game.idx++;
+    if (game.idx >= game.order.length) finishRound();
+    else renderPlay();
+  }
+  $('check-btn').addEventListener('click', checkAnswers);
+  $('next-btn').addEventListener('click', nextQuestion);
+  $('quit-btn').addEventListener('click', finishRound);
+
+  // ---------- Flash cards ----------
+  function renderFlash() {
+    const q = currentQuestion();
+    const n = game.order.length;
+    game.revealed = false;
+    $('flash-counter').textContent = `Card ${game.idx + 1} of ${n}`;
+    $('flash-score').textContent = `${totalScore()} of ${n * 2} points`;
+    $('flash-bar').style.width = `${(game.idx / n) * 100}%`;
+    $('flash-question').textContent = q.q;
+    $('flash-title').textContent = q.title;
+    $('flash-author').textContent = q.author;
+    $('flash-reveal').hidden = true;
+    $('flash-card').classList.remove('flipped');
+    $('flip-btn').hidden = false;
+    $('grade-wrap').hidden = true;
+    renderStatus();
+    $('flip-btn').focus();
+  }
+  function flip() {
+    if (!game || game.revealed) return;
+    game.revealed = true;
+    $('flash-reveal').hidden = false;
+    $('flash-card').classList.add('flipped');
+    $('flip-btn').hidden = true;
+    $('grade-wrap').hidden = false;
+    $('grade-wrap').querySelector('button').focus();
+  }
+  function grade(value) {
+    if (!game || !game.revealed) return;
+    const q = currentQuestion();
+    const titleOk = value === '2' || value === 'title';
+    const authorOk = value === '2' || value === 'author';
+    game.results.push({ q, titleOk, authorOk, titleGiven: null, authorGiven: null, team: null });
+    game.idx++;
+    if (game.idx >= game.order.length) finishRound();
+    else renderFlash();
+  }
+  $('flip-btn').addEventListener('click', flip);
+  $('flash-card').addEventListener('click', flip);
+  $('grade-wrap').addEventListener('click', e => {
+    const b = e.target.closest('button[data-grade]'); if (!b) return;
+    grade(b.dataset.grade);
+  });
+  $('flash-quit').addEventListener('click', finishRound);
+
+  // Keyboard shortcuts: Enter advances; in flash mode Space flips, 1-4 grade.
+  document.addEventListener('keydown', e => {
+    if (!game) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'button' && e.key === 'Enter') return;
+    if (!$('play').hidden) {
+      if (e.key === 'Enter') { e.preventDefault(); game.checked ? nextQuestion() : checkAnswers(); }
+    } else if (!$('flash').hidden) {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+      else if (game.revealed && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        grade(['2', 'title', 'author', '0'][Number(e.key) - 1]);
+      }
+    }
+  });
+
+  // ---------- Results ----------
+  function finishRound() {
+    if (!game) return;
+    const answered = game.results.length;
+    const possible = answered * 2;
+    const score = totalScore();
+    const pct = possible ? Math.round((score / possible) * 100) : 0;
+    const planned = game.order.length;
+    $('results-eyebrow').textContent = answered < planned ? `Round ended early · ${answered} of ${planned} questions answered` : `Round complete · ${planned} questions`;
+    $('results-heading').textContent = !answered ? 'No questions answered' : pct === 100 ? 'Perfect round!' : pct >= 80 ? 'Great work!' : pct >= 60 ? 'Solid practice.' : 'Keep at it.';
+    $('results-score').textContent = `${score} / ${possible}`;
+    $('results-percent').textContent = possible ? `${pct}% · ${game.mode === 'flash' ? 'flash cards' : game.mode === 'team' ? 'team mode' : 'solo mode'}` : '';
+
+    const titles = game.results.filter(r => r.titleOk).length;
+    const authors = game.results.filter(r => r.authorOk).length;
+    $('breakdown').innerHTML = '';
+    for (const [label, n] of [['Titles correct', titles], ['Authors correct', authors]]) {
+      const s = document.createElement('div'); s.className = 'stat';
+      s.innerHTML = `<span class="eyebrow"></span><b></b>`;
+      s.querySelector('.eyebrow').textContent = label;
+      s.querySelector('b').textContent = `${n} / ${answered}`;
+      $('breakdown').append(s);
+    }
+
+    const board = $('board');
+    board.innerHTML = '';
+    if (game.teams) {
+      const sorted = game.teams.slice().sort((a, b) => b.score - a.score);
+      const top = sorted[0].score;
+      for (const t of sorted) {
+        const row = document.createElement('div');
+        row.className = 'board-row' + (t.score === top && top > 0 ? ' winner' : '');
+        row.style.setProperty('--team', t.color);
+        row.innerHTML = `<span class="dot"></span><span></span><b></b>`;
+        row.children[1].textContent = t.name + (t.score === top && top > 0 ? (sorted.filter(x => x.score === top).length > 1 ? ' · tie' : ' · winner') : '');
+        row.children[2].textContent = `${t.score} pts`;
+        board.append(row);
+      }
+      board.hidden = false;
+    } else board.hidden = true;
+
+    const missed = game.results.filter(r => !r.titleOk || !r.authorOk);
+    $('missed-wrap').hidden = missed.length === 0;
+    $('missed-eyebrow').textContent = `Review these · ${missed.length} question${missed.length === 1 ? '' : 's'}`;
+    const list = $('missed'); list.innerHTML = '';
+    for (const r of missed) {
+      const item = document.createElement('div'); item.className = 'missed-item';
+      const qEl = document.createElement('div'); qEl.className = 'q'; qEl.textContent = r.q.q;
+      const ans = document.createElement('div');
+      ans.innerHTML = `<span class="tag"></span> <span></span> &nbsp; <span class="tag"></span> <span></span>`;
+      const tags = ans.querySelectorAll('.tag'), vals = ans.querySelectorAll('span:not(.tag)');
+      tags[0].className = 'tag ' + (r.titleOk ? 'ok' : 'miss'); tags[0].textContent = 'Title'; vals[0].textContent = r.q.title;
+      tags[1].className = 'tag ' + (r.authorOk ? 'ok' : 'miss'); tags[1].textContent = 'Author'; vals[1].textContent = r.q.author;
+      item.append(qEl, ans);
+      if (r.team) { const t = document.createElement('div'); t.className = 'muted small'; t.textContent = `Asked of ${r.team}`; item.append(t); }
+      list.append(item);
+    }
+    show('results');
+  }
+
+  // ---------- Boot (with hot-update snapshot for viewers mid-game) ----------
+  function boot(data) {
+    if (data && data.settings) Object.assign(settings, data.settings);
+    renderSetup();
+    if (data && data.game && data.game.order && data.game.order.every(i => i < QUESTIONS.length)) {
+      game = data.game;
+      if (game.mode === 'flash') { show('flash'); renderFlash(); }
+      else if (game.idx < game.order.length) { show('play'); renderPlay(); }
+      else finishRound();
+    } else show('home');
+  }
+  if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
+    window.claude.hot.snapshot(() => ({ settings, game: game && !game.checked ? game : null }));
+  }
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
+  else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+</script>
+</body>
+</html>
