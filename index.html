@@ -18,6 +18,11 @@ a.level strong { font-size: 1.2rem; }
 a.level span { color: var(--muted); font-size: 0.95rem; }
 .play { padding: 10px 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 800; }
 .soon { opacity: 0.6; }
+/* Mascot on a stack of books, under the closing line */
+.hero { position: relative; width: min(520px, 100%); aspect-ratio: 1; margin: 0 auto; }
+.hero .books { position: absolute; left: 19%; bottom: 6.5%; width: 61.5%; }
+.hero .books svg { display: block; width: 100%; height: auto; }
+.hero .mascot { position: absolute; width: 63.5%; left: 23%; top: 2.7%; filter: drop-shadow(0 0 2px #fff6cc) drop-shadow(0 0 1px #fff6cc); }
 </style>
 </head>
 <body>
@@ -32,6 +37,27 @@ a.level span { color: var(--muted); font-size: 0.95rem; }
     <div class="level soon"><div><strong>Middle School Battle of the Books</strong><br><span>Coming soon: no question spreadsheet yet</span></div></div>
   </div>
   <p>Each game draws its questions at random from that school's current question spreadsheet.</p>
+  <div class="hero" aria-hidden="true">
+    <div class="books">
+      <svg viewBox="0 0 320 190">
+        <g stroke="#fff6cc" stroke-width="5" stroke-linejoin="round">
+          <rect x="12" y="150" width="296" height="34" rx="6" fill="#ffd60a"/>
+          <rect x="30" y="114" width="262" height="34" rx="6" fill="#0b0b0b"/>
+          <g transform="rotate(-4 160 95)"><rect x="26" y="78" width="268" height="34" rx="6" fill="#fff6cc"/></g>
+          <rect x="48" y="42" width="228" height="34" rx="6" fill="#ffd60a"/>
+          <rect x="70" y="8" width="190" height="32" rx="6" fill="#0b0b0b"/>
+        </g>
+        <g stroke-linecap="round" stroke-width="6">
+          <line x1="40" y1="167" x2="150" y2="167" stroke="#0b0b0b"/>
+          <line x1="58" y1="131" x2="150" y2="131" stroke="#ffd60a"/>
+          <g transform="rotate(-4 160 95)"><line x1="54" y1="95" x2="140" y2="95" stroke="#0b0b0b"/></g>
+          <line x1="76" y1="59" x2="150" y2="59" stroke="#0b0b0b"/>
+          <line x1="98" y1="24" x2="160" y2="24" stroke="#ffd60a"/>
+        </g>
+      </svg>
+    </div>
+    <img class="mascot" src="assets/mascot.png" alt="">
+  </div>
 </main>
 </body>
 </html>
