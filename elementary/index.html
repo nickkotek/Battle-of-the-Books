@@ -10,50 +10,32 @@
 <style>
 /* Layout: one centered column (max 760px). A slim status bar sits above a single question card; option grids collapse to one column at phone width. */
 :root {
-  --bg: #ffd60a;
-  --card: #fffbe8;
-  --fg: #0b0b0b;
-  --muted: #4d4733;
-  --line: #d9c45a;
-  --accent: #0b0b0b;
-  --accent-fg: #ffd60a;
-  --accent-soft: #ffe97a;
-  --ink: #0b0b0b;
-  --ink-fg: #ffd60a;
-  --ink-soft: #fff0a3;
+  /* Single dark look, by design: black page, charcoal cards, yellow accents. */
+  color-scheme: dark;
+  --bg: #0b0b0b;
+  --card: #1b1a14;
+  --fg: #fff6cc;
+  --muted: #c2b88c;
+  --line: #3d3920;
+  --accent: #ffd60a;
+  --accent-fg: #0b0b0b;
+  --accent-soft: #3b3200;
+  --ink: #ffd60a;
+  --ink-fg: #0b0b0b;
+  --ink-soft: #2e2a0e;
   --yellow: #ffd60a;
-  --good: #1f7a32;
-  --good-soft: #e0f3e3;
-  --bad: #b42323;
-  --bad-soft: #fbe3e3;
-  --t1: #1a5fd0;
-  --t2: #c2255c;
-  --t3: #1f8a3a;
-  --t4: #6f42c1;
-  --shadow: 0 10px 30px rgba(60, 45, 0, 0.18);
+  --good: #6fcf7f;
+  --good-soft: #15301b;
+  --bad: #f27b7b;
+  --bad-soft: #3a1818;
+  --t1: #6aa5f5;
+  --t2: #f06595;
+  --t3: #69db7c;
+  --t4: #b197fc;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
   --body: "Nunito", "Segoe UI", system-ui, sans-serif;
   --radius: 16px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0b0b0b; --card: #1b1a14; --fg: #fff6cc; --muted: #c2b88c; --line: #3d3920;
-    --accent: #ffd60a; --accent-fg: #0b0b0b; --accent-soft: #3b3200;
-    --ink: #ffd60a; --ink-fg: #0b0b0b; --ink-soft: #2e2a0e; --yellow: #ffd60a;
-    --good: #6fcf7f; --good-soft: #15301b; --bad: #f27b7b; --bad-soft: #3a1818;
-    --t1: #6aa5f5; --t2: #f06595; --t3: #69db7c; --t4: #b197fc;
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0b0b0b; --card: #1b1a14; --fg: #fff6cc; --muted: #c2b88c; --line: #3d3920;
-  --accent: #ffd60a; --accent-fg: #0b0b0b; --accent-soft: #3b3200;
-  --ink: #ffd60a; --ink-fg: #0b0b0b; --ink-soft: #2e2a0e; --yellow: #ffd60a;
-  --good: #6fcf7f; --good-soft: #15301b; --bad: #f27b7b; --bad-soft: #3a1818;
-  --t1: #6aa5f5; --t2: #f06595; --t3: #69db7c; --t4: #b197fc;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
