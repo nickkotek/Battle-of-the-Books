@@ -65,7 +65,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 /* Top bar */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-mark { width: 56px; height: 56px; flex: none; display: block; }
+.brand-mark { position: relative; width: 84px; height: 84px; flex: none; }
+.brand-books { position: absolute; left: 19%; bottom: 4%; width: 62%; height: auto; }
+.brand-mascot { position: absolute; width: 64%; left: 23%; top: 0; filter: drop-shadow(0 0 1px #fff6cc); }
 .status { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
@@ -206,20 +208,19 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 <div class="app">
   <header class="top">
     <div class="brand">
-      <!-- Stack-of-books illustration: original drawing for this project, dedicated to the public domain under CC0 1.0. -->
-      <svg class="brand-mark" viewBox="0 0 64 64" role="img" aria-label="A stack of books">
-        <rect x="5" y="46" width="54" height="12" rx="2.5" fill="var(--yellow)" stroke="var(--fg)" stroke-width="2.5"/>
-        <rect x="11" y="50.5" width="26" height="3" rx="1" fill="var(--fg)"/>
-        <rect x="9" y="33.5" width="46" height="12" rx="2.5" fill="var(--fg)" stroke="var(--fg)" stroke-width="2.5"/>
-        <rect x="16" y="38" width="20" height="3" rx="1" fill="var(--yellow)"/>
-        <g transform="rotate(-6 32 27)">
-          <rect x="8" y="21" width="46" height="12" rx="2.5" fill="var(--card)" stroke="var(--fg)" stroke-width="2.5"/>
-          <rect x="15" y="25.5" width="18" height="3" rx="1" fill="var(--fg)"/>
-        </g>
-        <rect x="14" y="7" width="38" height="12" rx="2.5" fill="var(--yellow)" stroke="var(--fg)" stroke-width="2.5"/>
-        <rect x="20" y="11.5" width="14" height="3" rx="1" fill="var(--fg)"/>
-        <path d="M43 6.5 v11 l3.5 -3 3.5 3 v-11 z" fill="var(--fg)"/>
-      </svg>
+      <!-- School mascot on a stack of books; the mascot image lives in ../assets/ -->
+      <div class="brand-mark" aria-hidden="true">
+        <svg class="brand-books" viewBox="0 0 320 190">
+          <g stroke="#fff6cc" stroke-width="7" stroke-linejoin="round">
+            <rect x="12" y="150" width="296" height="34" rx="6" fill="#ffd60a"/>
+            <rect x="30" y="114" width="262" height="34" rx="6" fill="#0b0b0b"/>
+            <g transform="rotate(-4 160 95)"><rect x="26" y="78" width="268" height="34" rx="6" fill="#fff6cc"/></g>
+            <rect x="48" y="42" width="228" height="34" rx="6" fill="#ffd60a"/>
+            <rect x="70" y="8" width="190" height="32" rx="6" fill="#0b0b0b"/>
+          </g>
+        </svg>
+        <img class="brand-mascot" src="../assets/mascot.png" alt="">
+      </div>
       <div>
         <h1>Elementary School Battle of the Books</h1>
         <p class="muted small" id="bank-line">Loading question bank…</p>
