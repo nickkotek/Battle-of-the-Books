@@ -202,6 +202,35 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 
+/* Comic-book feedback burst after each answer */
+.pow { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; }
+.pow-burst {
+  position: relative; width: min(600px, 94vw); aspect-ratio: 4 / 3; display: grid; place-items: center;
+  animation: pow-in .28s cubic-bezier(.2, 1.5, .4, 1), pow-shake .45s .28s ease-in-out 3, pow-out .35s 1.95s ease-in forwards;
+}
+.pow-burst svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pow-shape { fill: var(--pow-fill, #ffd60a); stroke: #0b0b0b; stroke-width: 7; stroke-linejoin: round; }
+.pow-shape-back { fill: #0b0b0b; transform: translate(10px, 12px); }
+.pow-text {
+  position: relative; padding: 0 13%; text-align: center; font-family: var(--display); font-weight: 800; text-transform: uppercase;
+  font-size: clamp(1.8rem, 6vw, 3.4rem); line-height: 1.02; letter-spacing: .01em; color: #0b0b0b; text-wrap: balance;
+  transform: rotate(-6deg); text-shadow: 3px 3px 0 #fff6cc, 5px 5px 0 #0b0b0b;
+}
+.pow-text.long { font-size: clamp(1.25rem, 4vw, 2.3rem); }
+.pow.correct { --pow-fill: #ffd60a; }
+.pow.partial { --pow-fill: #fff6cc; }
+.pow.wrong { --pow-fill: #f27b7b; }
+@keyframes pow-in { from { transform: scale(.15) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+@keyframes pow-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-12px, 5px) rotate(-3deg); }
+  40% { transform: translate(12px, -5px) rotate(3deg); }
+  60% { transform: translate(-9px, -4px) rotate(-2deg); }
+  80% { transform: translate(9px, 4px) rotate(2deg); }
+}
+@keyframes pow-out { to { transform: scale(1.12); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pow-burst { animation: pow-out .35s 1.95s ease-in forwards !important; } }
+
 @media (max-width: 560px) {
   body { font-size: 16px; }
   .modes, .options, .breakdown, .team-names { grid-template-columns: 1fr; }
@@ -426,6 +455,13 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
       </div>
     </section>
   </main>
+
+  <div class="pow" id="pow" hidden aria-live="polite">
+    <div class="pow-burst" id="pow-burst">
+      <svg viewBox="-40 -40 480 380" aria-hidden="true"><polygon class="pow-shape pow-shape-back" id="pow-shape-back"/><polygon class="pow-shape" id="pow-shape"/></svg>
+      <span class="pow-text" id="pow-text"></span>
+    </div>
+  </div>
 
   <footer>Question bank from NEW_BOB_GEM.xlsx, rebuilt 2026-11-09. Title answers accept small spelling slips; author answers accept the last name.</footer>
 </div>
@@ -722,10 +758,45 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
     if (ms <= 0) timeUp();
   }
 
+  // ---------- Comic-book feedback burst ----------
+  const POW_LINES = {
+    correct: ['Excellent!', 'Good Job!', 'You Are a Master Reader!'],
+    partial: ['So Close!', 'Maybe Next Time!', 'Keep Reading to Acquire More Knowledge!'],
+    wrong: ['Not Quite!', 'Give It Another Try Next Time!', 'Consult the Books Next Time!'],
+  };
+  let powTimer = null;
+  (function drawStarburst() {
+    // 22 spikes with slightly uneven lengths, stretched wide like a comic sound effect.
+    const pts = [];
+    const spikes = 22, cx = 200, cy = 150;
+    for (let i = 0; i < spikes * 2; i++) {
+      const a = (Math.PI * 2 * i) / (spikes * 2) - Math.PI / 2;
+      const outer = i % 2 === 0;
+      const r = outer ? 150 + ((i * 7) % 5) * 9 : 118;
+      pts.push(`${(cx + Math.cos(a) * r * 1.32).toFixed(1)},${(cy + Math.sin(a) * r).toFixed(1)}`);
+    }
+    $('pow-shape').setAttribute('points', pts.join(' '));
+    $('pow-shape-back').setAttribute('points', pts.join(' '));
+  })();
+  function showPow(outcome) {
+    const lines = POW_LINES[outcome];
+    const text = lines[randInt(lines.length)];
+    const pow = $('pow'), burst = $('pow-burst');
+    clearTimeout(powTimer);
+    pow.className = `pow ${outcome}`;
+    $('pow-text').textContent = text;
+    $('pow-text').classList.toggle('long', text.length > 16);
+    pow.hidden = false;
+    burst.style.animation = 'none'; void burst.offsetWidth; burst.style.animation = ''; // restart the animation
+    powTimer = setTimeout(hidePow, 2400);
+  }
+  function hidePow() { clearTimeout(powTimer); $('pow').hidden = true; }
+
   // ---------- Screens ----------
   const screens = ['home', 'play', 'flash', 'results'];
   function show(name) {
     stopSpeaking();
+    hidePow();
     if (name !== 'play') stopQuestionTimer();
     if (name === 'home') BobSound.start(); else BobSound.stop(); // the jingle plays until a round starts
     for (const s of screens) $(s).hidden = s !== name;
@@ -971,6 +1042,7 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
     next.textContent = game.idx + 1 >= game.order.length ? 'See results' : 'Next question';
     next.focus();
     renderStatus();
+    showPow(timedOut || (!titleOk && !authorOk) ? 'wrong' : titleOk && authorOk ? 'correct' : 'partial');
   }
   function verdict(label, ok, correct, given) {
     const d = document.createElement('div');
@@ -990,6 +1062,7 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
   }
   function nextQuestion() {
     if (!game || !game.checked) return;
+    hidePow();
     game.idx++;
     if (game.idx >= game.order.length) finishRound();
     else renderPlay();

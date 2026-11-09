@@ -44,6 +44,10 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
   type it in. Typed titles accept small spelling slips and ignore subtitles;
   typed authors accept the full name or the last name.
 - **Scoring**: 2 points per question, 1 for the correct title and 1 for the author.
+- **Feedback bursts**: after every answer a comic-book starburst pops up and shakes
+  with a message drawn at random for the outcome: both right, one of two right, or
+  wrong / out of time. The three messages per outcome are listed near the top of the
+  script in `template.html` and are easy to change.
 - **30-second clock** (solo and team): a countdown ring shows the seconds left for each
   question, turning red for the last ten. When it hits zero the question is scored
   zero, the answers are shown, and play moves on.
