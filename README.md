@@ -46,7 +46,7 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
 - **Scoring**: 2 points per question, 1 for the correct title and 1 for the author.
 - **Read-aloud**: switch it on before starting and hovering over the question, a
   title or author option, or a flash card reads it aloud using the browser's built-in
-  speech. Keyboard focus reads too. The choice is remembered on that device.
+  speech. Keyboard focus reads too. It is off each time the page is opened.
 - **Randomness**: every round reloads the full question set and shuffles it with the
   browser's cryptographic random source. Past orderings are remembered in the
   browser so the same sequence is never served twice on that device.

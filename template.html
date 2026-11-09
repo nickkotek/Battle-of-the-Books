@@ -522,7 +522,6 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
 
   // ---------- State ----------
   const settings = { mode: 'solo', count: 10, style: 'choice', flashFront: 'title', readAloud: false, teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
-  try { settings.readAloud = localStorage.getItem('bob-read-aloud') === 'on'; } catch (e) { /* storage unavailable */ }
   let game = null; // quiz: { mode, style, order, idx, results, teams, picks, checked }  flash: { mode, deck, idx, flipped, front }
 
   function currentQuestion() { return QUESTIONS[game.order[game.idx]]; }
@@ -645,8 +644,7 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
   });
   $('read-picker').addEventListener('click', e => {
     const b = e.target.closest('button[data-read]'); if (!b) return;
-    settings.readAloud = b.dataset.read === 'on';
-    try { localStorage.setItem('bob-read-aloud', settings.readAloud ? 'on' : 'off'); } catch (err) { /* storage unavailable */ }
+    settings.readAloud = b.dataset.read === 'on'; // off by default on every page load
     renderSetup();
     if (settings.readAloud) speak('Read-aloud is on.'); else stopSpeaking();
   });
