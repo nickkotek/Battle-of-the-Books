@@ -161,7 +161,7 @@ def build_landing(built, pending):
     rows = []
     for lv in built:
         rows.append(
-            f'    <a class="level" href="{lv["slug"]}/">'
+            f'    <a class="level" href="{lv["slug"]}/index.html">'
             f'<div><strong>{html.escape(lv["name"])}</strong><br><span>{lv["questions"]:,} questions, {lv["books"]} books</span></div>'
             f'<span class="play">Play</span></a>'
         )
