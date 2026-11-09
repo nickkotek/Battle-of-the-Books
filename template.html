@@ -201,10 +201,11 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
-</style>
+.app { position: relative; z-index: 1; }
+{{SIDE_BOOKS_CSS}}</style>
 </head>
 <body>
-
+{{SIDE_BOOKS_HTML}}
 <div class="app">
   <header class="top">
     <div class="brand">

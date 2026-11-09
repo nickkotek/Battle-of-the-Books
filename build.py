@@ -108,7 +108,9 @@ def build_level(level_dir, template):
             .replace("{{GAME_NAME}}", html.escape(name))
             .replace("{{SLUG}}", level_dir.name)
             .replace("{{SOURCE_FILE}}", html.escape(xlsx.name))
-            .replace("{{BUILD_DATE}}", dt.date.today().isoformat()))
+            .replace("{{BUILD_DATE}}", dt.date.today().isoformat())
+            .replace("{{SIDE_BOOKS_CSS}}", side_books_css())
+            .replace("{{SIDE_BOOKS_HTML}}", SIDE_BOOKS_HTML))
     (level_dir / "index.html").write_text(page, encoding="utf-8")
     (level_dir / "questions.json").write_text(json.dumps(questions, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -118,6 +120,45 @@ def build_level(level_dir, template):
         print(f"  Skipped {len(skipped)} incomplete row(s): {', '.join(map(str, skipped))}")
     return {"slug": level_dir.name, "name": name, "questions": len(questions), "books": len(books), "source": xlsx.name}
 
+
+
+# ---------- Decorative columns of stacked books down both page margins ----------
+# One tile (180 x 440) that repeats vertically; book heights and gaps sum to the tile
+# height so the seam between tiles is invisible.
+def _side_books_tile():
+    books = [  # (x, width, fill, label colour, tilt)
+        (18, 150, "#ffd60a", "#0b0b0b", 0), (30, 128, "#0b0b0b", "#ffd60a", 0), (12, 160, "#fff6cc", "#0b0b0b", -2),
+        (26, 136, "#ffd60a", "#0b0b0b", 0), (38, 118, "#0b0b0b", "#ffd60a", 0), (16, 150, "#ffd60a", "#0b0b0b", 2),
+        (24, 140, "#fff6cc", "#0b0b0b", 0), (34, 124, "#0b0b0b", "#ffd60a", 0), (14, 156, "#ffd60a", "#0b0b0b", 0),
+        (28, 132, "#0b0b0b", "#ffd60a", -2), (20, 146, "#fff6cc", "#0b0b0b", 0),
+    ]
+    h, gap = 34, 6  # 11 books x 40 = 440
+    parts = []
+    for i, (x, w, fill, label, tilt) in enumerate(books):
+        y = i * (h + gap) + gap / 2
+        cx, cy = x + w / 2, y + h / 2
+        tr = f' transform="rotate({tilt} {cx} {cy})"' if tilt else ""
+        parts.append(
+            f'<g{tr}><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="5" fill="{fill}" stroke="#fff6cc" stroke-width="4"/>'
+            f'<line x1="{x + 16}" y1="{cy}" x2="{x + w * 0.55:.0f}" y2="{cy}" stroke="{label}" stroke-width="5" stroke-linecap="round"/></g>'
+        )
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 440" width="180" height="440">' + "".join(parts) + "</svg>"
+
+
+def side_books_css():
+    from urllib.parse import quote
+    uri = "data:image/svg+xml," + quote(_side_books_tile(), safe="/:=, ")
+    return (
+        "/* Stacks of books down both margins; shown only when the window is wide enough to leave margins free */\n"
+        ".side-books { display: none; position: fixed; top: 0; bottom: 0; width: 180px; z-index: 0; pointer-events: none;\n"
+        f"  background: url(\"{uri}\") center top / 180px 440px repeat-y; opacity: 0.9; }}\n"
+        ".side-books.left { left: max(8px, env(safe-area-inset-left, 0px)); }\n"
+        ".side-books.right { right: max(8px, env(safe-area-inset-right, 0px)); transform: scaleX(-1); }\n"
+        "@media (min-width: 1180px) { .side-books { display: block; } }\n"
+    )
+
+
+SIDE_BOOKS_HTML = '<div class="side-books left" aria-hidden="true"></div>\n<div class="side-books right" aria-hidden="true"></div>'
 
 LANDING = """<!doctype html>
 <html lang="en">
@@ -139,6 +180,8 @@ a.level strong { font-size: 1.2rem; }
 a.level span { color: var(--muted); font-size: 0.95rem; }
 a.level .play { padding: 10px 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 800; }
 .soon { opacity: 0.6; }
+main { position: relative; z-index: 1; }
+__SIDE_BOOKS_CSS__
 /* Mascot on a stack of books, under the closing line */
 .hero { position: relative; width: min(520px, 100%); aspect-ratio: 1; margin: 0 auto; }
 .hero .books { position: absolute; left: 19%; bottom: 6.5%; width: 61.5%; }
@@ -147,6 +190,7 @@ a.level .play { padding: 10px 18px; border-radius: 10px; background: var(--accen
 </style>
 </head>
 <body>
+__SIDE_BOOKS_HTML__
 <main>
   <div>
     <h1>Battle of the Books Practice</h1>
@@ -195,7 +239,10 @@ def build_landing(built, pending):
         rows.append(
             f'    <div class="level soon"><div><strong>{html.escape(lv)}</strong><br><span>Coming soon: no question spreadsheet yet</span></div></div>'
         )
-    (HERE / "index.html").write_text(LANDING.replace("__LEVELS__", "\n".join(rows)), encoding="utf-8")
+    page = (LANDING.replace("__LEVELS__", "\n".join(rows))
+            .replace("__SIDE_BOOKS_CSS__", side_books_css())
+            .replace("__SIDE_BOOKS_HTML__", SIDE_BOOKS_HTML))
+    (HERE / "index.html").write_text(page, encoding="utf-8")
 
 
 def main():
