@@ -282,6 +282,15 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         <p class="muted small" id="style-help">Choose the title and author from four options each.</p>
       </div>
 
+      <div class="field" id="read-field">
+        <span class="eyebrow">Read-aloud</span>
+        <div class="seg" id="read-picker" role="group" aria-label="Read-aloud">
+          <button type="button" data-read="off" aria-pressed="true">Off</button>
+          <button type="button" data-read="on" aria-pressed="false">On</button>
+        </div>
+        <p class="muted small" id="read-help">When on, hover over the question, a title, an author, or a flash card to hear it read aloud. Keyboard focus reads it too.</p>
+      </div>
+
       <div class="field" id="team-field" hidden>
         <span class="eyebrow">Teams</span>
         <div class="seg" id="team-count-picker" role="group" aria-label="Number of teams">
@@ -308,7 +317,8 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         </div>
         <div class="progress"><div id="play-bar"></div></div>
       </div>
-      <p class="question" id="play-question"></p>
+      <p class="question" id="play-question" data-speak=""></p>
+      <p class="muted small" id="play-read-hint" hidden>Read-aloud is on. Hover over the question or an answer to hear it.</p>
       <div class="answers">
         <div class="answer-group" id="title-group">
           <span class="eyebrow">Title</span>
@@ -339,7 +349,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         <div class="progress"><div id="flash-bar"></div></div>
       </div>
       <div class="flash-scene" id="flash-scene">
-        <button class="flash-card" type="button" id="flash-card" aria-label="Flip the card">
+        <button class="flash-card" type="button" id="flash-card" aria-label="Flip the card" data-speak="card">
           <span class="flash-face front">
             <span class="eyebrow" id="flash-front-label">Title</span>
             <span class="big-text" id="flash-front"></span>
@@ -507,15 +517,68 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
   }
 
   // ---------- State ----------
-  const settings = { mode: 'solo', count: 10, style: 'choice', flashFront: 'title', teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
+  const settings = { mode: 'solo', count: 10, style: 'choice', flashFront: 'title', readAloud: false, teamCount: 2, teamNames: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] };
+  try { settings.readAloud = localStorage.getItem('bob-read-aloud') === 'on'; } catch (e) { /* storage unavailable */ }
   let game = null; // quiz: { mode, style, order, idx, results, teams, picks, checked }  flash: { mode, deck, idx, flipped, front }
 
   function currentQuestion() { return QUESTIONS[game.order[game.idx]]; }
   function currentTeam() { return game.teams ? game.teams[game.idx % game.teams.length] : null; }
 
+  // ---------- Read-aloud (built-in browser speech, works offline) ----------
+  const SPEECH = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  let voice = null;
+  function pickVoice() {
+    if (!SPEECH) return null;
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    const english = voices.filter(v => /^en(-|_)?/i.test(v.lang));
+    voice = english.find(v => /^en[-_]US/i.test(v.lang) && v.localService) || english.find(v => v.localService) || english[0] || voices[0];
+    return voice;
+  }
+  if (SPEECH && typeof speechSynthesis.addEventListener === 'function') speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  function stopSpeaking() { if (SPEECH) speechSynthesis.cancel(); }
+  function speak(text) {
+    if (!SPEECH || !settings.readAloud || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    u.rate = 0.95;
+    const v = voice || pickVoice();
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  }
+  // What to read for a speakable element: the flash card reads whichever side is showing.
+  function speakText(el) {
+    if (el.dataset.speak === 'card' && game && game.mode === 'flash') {
+      const label = game.flipped ? $('flash-back-label').textContent : $('flash-front-label').textContent;
+      const text = game.flipped ? $('flash-back').textContent : $('flash-front').textContent;
+      return `${label}: ${text}`;
+    }
+    return el.dataset.speak || el.textContent;
+  }
+  let hoverTimer = null, hovered = null;
+  document.addEventListener('mouseover', e => {
+    if (!settings.readAloud) return;
+    const el = e.target.closest('[data-speak]');
+    if (!el || el === hovered) return;
+    hovered = el;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => speak(speakText(el)), 150); // a short pause so sweeping the mouse across does not chatter
+  });
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest('[data-speak]');
+    if (el && !el.contains(e.relatedTarget)) { hovered = null; clearTimeout(hoverTimer); }
+  });
+  document.addEventListener('focusin', e => {
+    if (!settings.readAloud) return;
+    const el = e.target.closest('[data-speak]');
+    if (el && el !== hovered) speak(speakText(el)); // hovering already read it; a click should not repeat it
+  });
+
   // ---------- Screens ----------
   const screens = ['home', 'play', 'flash', 'results'];
   function show(name) {
+    stopSpeaking();
     for (const s of screens) $(s).hidden = s !== name;
     $('status').hidden = name === 'home' || name === 'results' || name === 'flash';
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -531,6 +594,11 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
     pressGroup($('style-picker'), 'style', settings.style);
     pressGroup($('team-count-picker'), 'teams', settings.teamCount);
     pressGroup($('front-picker'), 'front', settings.flashFront);
+    pressGroup($('read-picker'), 'read', settings.readAloud ? 'on' : 'off');
+    if (!SPEECH) {
+      for (const b of $('read-picker').querySelectorAll('button')) b.disabled = true;
+      $('read-help').textContent = 'Read-aloud is not available in this browser.';
+    }
     const flash = settings.mode === 'flash';
     $('style-field').hidden = flash;
     $('count-field').hidden = flash;
@@ -570,6 +638,13 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
   $('front-picker').addEventListener('click', e => {
     const b = e.target.closest('button[data-front]'); if (!b) return;
     settings.flashFront = b.dataset.front; renderSetup();
+  });
+  $('read-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-read]'); if (!b) return;
+    settings.readAloud = b.dataset.read === 'on';
+    try { localStorage.setItem('bob-read-aloud', settings.readAloud ? 'on' : 'off'); } catch (err) { /* storage unavailable */ }
+    renderSetup();
+    if (settings.readAloud) speak('Read-aloud is on.'); else stopSpeaking();
   });
   $('team-count-picker').addEventListener('click', e => {
     const b = e.target.closest('button[data-teams]'); if (!b) return;
@@ -636,6 +711,8 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
     $('play-turn').textContent = team ? `${team.name}, you’re up` : '';
     $('play-turn').style.color = team ? team.color : '';
     $('play-question').textContent = q.q;
+    $('play-read-hint').hidden = !(settings.readAloud && SPEECH);
+    stopSpeaking(); hovered = null;
     $('feedback').hidden = true; $('feedback').innerHTML = '';
     $('check-btn').hidden = false; $('check-btn').disabled = game.style === 'choice';
     $('next-btn').hidden = true;
@@ -655,7 +732,7 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
       const grid = document.createElement('div'); grid.className = 'options';
       for (const o of opts) {
         const b = document.createElement('button');
-        b.type = 'button'; b.className = 'opt'; b.textContent = o; b.dataset.value = o; b.setAttribute('aria-pressed', 'false');
+        b.type = 'button'; b.className = 'opt'; b.textContent = o; b.dataset.value = o; b.dataset.speak = ''; b.setAttribute('aria-pressed', 'false');
         b.addEventListener('click', () => {
           if (game.checked) return;
           game.picks[kind] = o;
@@ -784,9 +861,11 @@ const QUESTIONS = /*QUESTIONS_START*/[{"q":"In what book do some characters driv
     if (!game || game.mode !== 'flash' || game.idx >= game.deck.length) return;
     game.flipped = !game.flipped;
     $('flash-card').classList.toggle('flipped', game.flipped);
+    speak(speakText($('flash-card')));
   }
   function flashNext() {
     if (!game || game.mode !== 'flash') return;
+    stopSpeaking(); hovered = null;
     if (game.idx >= game.deck.length) { game.deck = shuffle(game.deck.slice()); game.idx = 0; }
     else game.idx++;
     game.flipped = false;

@@ -44,6 +44,9 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
   type it in. Typed titles accept small spelling slips and ignore subtitles;
   typed authors accept the full name or the last name.
 - **Scoring**: 2 points per question, 1 for the correct title and 1 for the author.
+- **Read-aloud**: switch it on before starting and hovering over the question, a
+  title or author option, or a flash card reads it aloud using the browser's built-in
+  speech. Keyboard focus reads too. The choice is remembered on that device.
 - **Randomness**: every round reloads the full question set and shuffles it with the
   browser's cryptographic random source. Past orderings are remembered in the
   browser so the same sequence is never served twice on that device.
