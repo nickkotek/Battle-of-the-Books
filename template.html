@@ -76,6 +76,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 }
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--team, var(--ink)); }
 .chip.turn { border-color: var(--team, var(--ink)); box-shadow: inset 0 0 0 1px var(--team, var(--ink)); }
+button.chip.tool { cursor: pointer; color: var(--fg); }
+button.chip.tool[aria-pressed="false"] { opacity: 0.7; }
 
 /* Cards */
 .card {
@@ -127,6 +129,15 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.big { font-size: 1.15rem; padding: 14px 28px; }
 
 /* Play */
+.timer { position: relative; width: 60px; height: 60px; flex: none; }
+.timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.timer .track { fill: none; stroke: var(--line); stroke-width: 4; }
+.timer .ring { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 119.4; stroke-dashoffset: 0; transition: stroke-dashoffset .1s linear, stroke .3s; }
+.timer .num { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.timer.urgent .ring { stroke: var(--bad); }
+.timer.urgent .num { color: var(--bad); animation: timer-pulse 1s ease-in-out infinite; }
+.timer.done .ring { stroke: var(--bad); stroke-dashoffset: 119.4; }
+@keyframes timer-pulse { 50% { transform: scale(1.15); } }
 .progress { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
 .question {
@@ -199,7 +210,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
   .score-hero .big { font-size: 2.4rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+  * { transition: none !important; animation: none !important; }
 }
 .app { position: relative; z-index: 1; }
 {{SIDE_BOOKS_CSS}}</style>
@@ -227,7 +238,10 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         <p class="muted small" id="bank-line">Loading question bank…</p>
       </div>
     </div>
-    <div class="status" id="status" hidden></div>
+    <div class="row">
+      <div class="status" id="status" hidden></div>
+      <button class="chip tool" id="sound-btn" type="button" aria-pressed="true">Sound: On</button>
+    </div>
   </header>
 
   <main>
@@ -305,7 +319,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         <p class="muted small">Teams alternate questions. Each question is worth 2 points: 1 for the title, 1 for the author.</p>
       </div>
 
-      <p class="muted small" id="scoring-note">Scoring: <b>+1</b> for the correct title, <b>+1</b> for the correct author.</p>
+      <p class="muted small" id="scoring-note">Scoring: <b>+1</b> for the correct title, <b>+1</b> for the correct author. You have <b>30 seconds</b> per question.</p>
       <div class="row between">
         <a class="btn ghost" id="level-link" href="../index.html">Select another level</a>
         <button class="btn primary big" type="button" id="start-btn">Start round</button>
@@ -317,6 +331,10 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
       <div class="stack" style="gap:8px">
         <div class="row between">
           <span class="eyebrow" id="play-counter">Question 1 of 10</span>
+          <div class="timer" id="timer" role="timer" aria-label="Seconds left">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="track" cx="22" cy="22" r="19"/><circle class="ring" id="timer-ring" cx="22" cy="22" r="19"/></svg>
+            <span class="num" id="timer-num">30</span>
+          </div>
           <span class="eyebrow" id="play-turn"></span>
         </div>
         <div class="progress"><div id="play-bar"></div></div>
@@ -405,6 +423,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
   <footer>Question bank from {{SOURCE_FILE}}, rebuilt {{BUILD_DATE}}. Title answers accept small spelling slips; author answers accept the last name.</footer>
 </div>
 
+{{JINGLE_JS}}
 <script>
 const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
 </script>
@@ -578,10 +597,73 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     if (el && el !== hovered) speak(speakText(el)); // hovering already read it; a click should not repeat it
   });
 
+  // ---------- Sound effects: tick-tock and time-up buzzer (share the jingle's audio context) ----------
+  function sfx(fn) {
+    if (!BobSound.isEnabled()) return;
+    const c = BobSound.context(); if (!c || c.state !== 'running') return;
+    fn(c, BobSound.master());
+  }
+  function tickTock(high, urgent) {
+    sfx((c, out) => {
+      const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+      o.type = 'triangle'; o.frequency.value = (high ? 1500 : 1000) * (urgent ? 1.25 : 1);
+      g.gain.setValueAtTime(urgent ? 0.3 : 0.22, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      o.connect(g).connect(out); o.start(t); o.stop(t + 0.08);
+    });
+  }
+  function buzzer() {
+    sfx((c, out) => {
+      const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.7);
+      g.gain.setValueAtTime(0.25, t); g.gain.setValueAtTime(0.25, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+      o.connect(g).connect(out); o.start(t); o.stop(t + 0.8);
+    });
+  }
+  $('sound-btn').addEventListener('click', () => {
+    const btn = $('sound-btn');
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? 'Sound: On' : 'Sound: Off';
+    BobSound.setEnabled(on);
+  });
+
+  // ---------- Question timer: 30 seconds per question in solo and team mode ----------
+  const QUESTION_SECONDS = Number(document.documentElement.dataset.questionSeconds) || 30;
+  const RING = 119.4; // circumference of the countdown ring
+  const qt = { deadline: 0, interval: null, lastWhole: null, lastHalf: null };
+  function startQuestionTimer() {
+    stopQuestionTimer();
+    qt.deadline = Date.now() + QUESTION_SECONDS * 1000;
+    qt.lastWhole = QUESTION_SECONDS; qt.lastHalf = null;
+    $('timer').classList.remove('done');
+    renderTimer(QUESTION_SECONDS * 1000);
+    qt.interval = setInterval(tickTimer, 100);
+  }
+  function stopQuestionTimer() { clearInterval(qt.interval); qt.interval = null; }
+  function renderTimer(ms) {
+    const secs = Math.ceil(ms / 1000);
+    $('timer-num').textContent = secs;
+    $('timer-ring').style.strokeDashoffset = (RING * (1 - ms / (QUESTION_SECONDS * 1000))).toFixed(1);
+    $('timer').classList.toggle('urgent', secs <= 10 && ms > 0);
+  }
+  function tickTimer() {
+    const ms = Math.max(0, qt.deadline - Date.now());
+    renderTimer(ms);
+    const whole = Math.ceil(ms / 1000);
+    if (whole !== qt.lastWhole) { qt.lastWhole = whole; if (whole > 0) tickTock(whole % 2 === 0, whole <= 10); }
+    if (ms > 0 && ms <= 5000) { // double time for the last five seconds
+      const half = Math.floor(ms / 500);
+      if (half % 2 === 1 && half !== qt.lastHalf) { qt.lastHalf = half; tickTock(true, true); }
+    }
+    if (ms <= 0) timeUp();
+  }
+
   // ---------- Screens ----------
   const screens = ['home', 'play', 'flash', 'results'];
   function show(name) {
     stopSpeaking();
+    if (name !== 'play') stopQuestionTimer();
+    if (name === 'home') BobSound.start(); else BobSound.stop(); // the jingle plays until a round starts
     for (const s of screens) $(s).hidden = s !== name;
     $('status').hidden = name === 'home' || name === 'results' || name === 'flash';
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -722,6 +804,7 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     renderAnswerArea('title', q);
     renderAnswerArea('author', q);
     renderStatus();
+    startQuestionTimer();
     if (game.style === 'typed') $('title-input').focus();
   }
   function renderAnswerArea(kind, q) {
@@ -770,8 +853,23 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     }
     const titleOk = game.style === 'choice' ? titleGiven === q.title : titleMatches(titleGiven, q.title);
     const authorOk = game.style === 'choice' ? authorGiven === q.author : authorMatches(authorGiven, q.author);
+    finishQuestion({ titleOk, authorOk, titleGiven, authorGiven, timedOut: false });
+  }
+  // The clock ran out: no points, show the answers, move on.
+  function timeUp() {
+    if (!game || game.checked) return;
+    const given = game.style === 'choice'
+      ? { titleGiven: game.picks.title, authorGiven: game.picks.author }
+      : { titleGiven: $('title-input').value, authorGiven: $('author-input').value };
+    $('timer').classList.add('done');
+    buzzer();
+    finishQuestion({ titleOk: false, authorOk: false, ...given, timedOut: true });
+  }
+  function finishQuestion({ titleOk, authorOk, titleGiven, authorGiven, timedOut }) {
+    stopQuestionTimer();
+    const q = currentQuestion();
     const team = currentTeam();
-    game.results.push({ q, titleOk, authorOk, titleGiven, authorGiven, team: team ? team.name : null });
+    game.results.push({ q, titleOk, authorOk, titleGiven, authorGiven, timedOut, team: team ? team.name : null });
     if (team) team.score += (titleOk ? 1 : 0) + (authorOk ? 1 : 0);
     game.checked = true;
 
@@ -791,12 +889,17 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
     }
     const fb = $('feedback');
     fb.innerHTML = '';
-    fb.append(verdict('Title', titleOk, q.title, titleGiven), verdict('Author', authorOk, q.author, authorGiven));
-    const pts = (titleOk ? 1 : 0) + (authorOk ? 1 : 0);
-    const line = document.createElement('p');
-    line.className = 'points';
-    line.textContent = `+${pts} point${pts === 1 ? '' : 's'}` + (team ? ` for ${team.name}` : '');
-    fb.append(line);
+    if (timedOut) {
+      const t = document.createElement('p'); t.className = 'points'; t.textContent = 'Time’s up! No points for this question.'; fb.append(t);
+      fb.append(verdict('Title', false, q.title, titleGiven), verdict('Author', false, q.author, authorGiven));
+    } else {
+      fb.append(verdict('Title', titleOk, q.title, titleGiven), verdict('Author', authorOk, q.author, authorGiven));
+      const pts = (titleOk ? 1 : 0) + (authorOk ? 1 : 0);
+      const line = document.createElement('p');
+      line.className = 'points';
+      line.textContent = `+${pts} point${pts === 1 ? '' : 's'}` + (team ? ` for ${team.name}` : '');
+      fb.append(line);
+    }
     fb.hidden = false;
     $('check-btn').hidden = true;
     const next = $('next-btn');
@@ -953,7 +1056,8 @@ const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
       tags[0].className = 'tag ' + (r.titleOk ? 'ok' : 'miss'); tags[0].textContent = 'Title'; vals[0].textContent = r.q.title;
       tags[1].className = 'tag ' + (r.authorOk ? 'ok' : 'miss'); tags[1].textContent = 'Author'; vals[1].textContent = r.q.author;
       item.append(qEl, ans);
-      if (r.team) { const t = document.createElement('div'); t.className = 'muted small'; t.textContent = `Asked of ${r.team}`; item.append(t); }
+      const notes = [r.timedOut ? 'Time ran out' : '', r.team ? `Asked of ${r.team}` : ''].filter(Boolean);
+      if (notes.length) { const t = document.createElement('div'); t.className = 'muted small'; t.textContent = notes.join(' · '); item.append(t); }
       list.append(item);
     }
     show('results');

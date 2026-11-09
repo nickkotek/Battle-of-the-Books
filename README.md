@@ -44,6 +44,14 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
   type it in. Typed titles accept small spelling slips and ignore subtitles;
   typed authors accept the full name or the last name.
 - **Scoring**: 2 points per question, 1 for the correct title and 1 for the author.
+- **30-second clock** (solo and team): a countdown ring shows the seconds left for each
+  question, turning red for the last ten. When it hits zero the question is scored
+  zero, the answers are shown, and play moves on.
+- **Sound**: a looping quiz-show jingle plays on the landing page and on each game's
+  setup screen until a round starts, and a tick-tock plays while a question's clock
+  runs. All audio is generated in the browser, so there are no sound files. Browsers
+  start sound only after the first click or key press. A Sound on/off button sits in
+  the header of every page.
 - **Read-aloud**: switch it on before starting and hovering over the question, a
   title or author option, or a flash card reads it aloud using the browser's built-in
   speech. Keyboard focus reads too. It is off each time the page is opened.

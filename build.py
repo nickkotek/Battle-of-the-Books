@@ -110,7 +110,8 @@ def build_level(level_dir, template):
             .replace("{{SOURCE_FILE}}", html.escape(xlsx.name))
             .replace("{{BUILD_DATE}}", dt.date.today().isoformat())
             .replace("{{SIDE_BOOKS_CSS}}", side_books_css())
-            .replace("{{SIDE_BOOKS_HTML}}", SIDE_BOOKS_HTML))
+            .replace("{{SIDE_BOOKS_HTML}}", SIDE_BOOKS_HTML)
+            .replace("{{JINGLE_JS}}", JINGLE_JS))
     (level_dir / "index.html").write_text(page, encoding="utf-8")
     (level_dir / "questions.json").write_text(json.dumps(questions, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -160,6 +161,65 @@ def side_books_css():
 
 SIDE_BOOKS_HTML = '<div class="side-books left" aria-hidden="true"></div>\n<div class="side-books right" aria-hidden="true"></div>'
 
+JINGLE_JS = r'''<script>
+// ---------- BobSound: a looping quiz-show jingle made with the Web Audio API (no files to download) ----------
+window.BobSound = (function () {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const BPM = 138, STEP = 60 / BPM / 2, STEPS = 32;            // eighth notes, 4 bars
+  // C major, I - vi - IV - V. Melody and bass as MIDI numbers, 0 = rest.
+  const MELODY = [72,76,79,76, 72,76,79,81,  79,0,76,0, 74,76,74,72,  69,72,77,72, 69,72,77,79,  79,0,83,0, 81,79,77,74];
+  const BASS   = [48,0,55,0, 48,0,55,0,  45,0,52,0, 45,0,52,0,  41,0,48,0, 41,0,48,0,  43,0,50,0, 43,0,50,0];
+  const CHORDS = [[60,64,67],[57,60,64],[57,60,65],[59,62,67]];
+  let ctx = null, master = null, timer = null, step = 0, nextTime = 0, playing = false, wanted = false, enabled = true;
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  function context() {
+    if (!AC) return null;
+    if (!ctx) { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.35; master.connect(ctx.destination); }
+    return ctx;
+  }
+  function tone(midi, t, dur, type, gain) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = hz(midi);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(gain, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.03);
+  }
+  function noise(t, dur, gain, highpass) {
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur)), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = buf; f.type = 'highpass'; f.frequency.value = highpass; g.gain.value = gain;
+    src.connect(f).connect(g).connect(master); src.start(t);
+  }
+  function schedule(i, t) {
+    const bar = Math.floor(i / 8), beat = i % 8;
+    if (MELODY[i]) tone(MELODY[i], t, STEP * 0.9, 'square', 0.11);
+    if (BASS[i]) tone(BASS[i], t, STEP * 1.6, 'triangle', 0.4);
+    if (beat % 2 === 1) for (const n of CHORDS[bar]) tone(n, t, STEP * 0.45, 'sawtooth', 0.035);
+    noise(t, 0.03, beat % 2 ? 0.07 : 0.14, 6000);                 // hi-hat
+    if (beat === 2 || beat === 6) noise(t, 0.12, 0.22, 1500);      // snare on 2 and 4
+  }
+  function pump() { while (nextTime < ctx.currentTime + 0.25) { schedule(step % STEPS, nextTime); step++; nextTime += STEP; } }
+  function halt() {
+    clearInterval(timer); timer = null; playing = false;
+    if (ctx) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.04); }
+  }
+  function start() {
+    wanted = true;
+    if (!enabled || playing) return;
+    const c = context(); if (!c) return;
+    if (c.state !== 'running') { c.resume().then(() => { if (wanted && !playing && c.state === 'running') start(); }).catch(() => {}); return; }
+    master.gain.cancelScheduledValues(c.currentTime); master.gain.setValueAtTime(0.35, c.currentTime);
+    playing = true; step = 0; nextTime = c.currentTime + 0.05;
+    timer = setInterval(pump, 60);
+  }
+  function stop() { wanted = false; halt(); }
+  function setEnabled(on) { enabled = !!on; if (!enabled) halt(); else if (wanted) start(); }
+  // Browsers only allow sound after the visitor clicks or presses a key, so retry then.
+  for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => { if (wanted && !playing) start(); }, { passive: true });
+  return { context, start, stop, setEnabled, isEnabled: () => enabled, isPlaying: () => playing, master: () => master };
+})();
+</script>'''
+
 LANDING = """<!doctype html>
 <html lang="en">
 <head>
@@ -180,6 +240,9 @@ a.level strong { font-size: 1.2rem; }
 a.level span { color: var(--muted); font-size: 0.95rem; }
 a.level .play { padding: 10px 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 800; }
 .soon { opacity: 0.6; }
+.heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.sound { font: inherit; font-weight: 800; font-size: 0.9rem; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+.sound[aria-pressed="false"] { opacity: 0.7; }
 main { position: relative; z-index: 1; }
 __SIDE_BOOKS_CSS__
 /* Mascot on a stack of books, under the closing line */
@@ -192,9 +255,12 @@ __SIDE_BOOKS_CSS__
 <body>
 __SIDE_BOOKS_HTML__
 <main>
-  <div>
-    <h1>Battle of the Books Practice</h1>
-    <p>Pick your school to start practicing.</p>
+  <div class="heading">
+    <div>
+      <h1>Battle of the Books Practice</h1>
+      <p>Pick your school to start practicing.</p>
+    </div>
+    <button class="sound" id="sound-btn" type="button" aria-pressed="true">Sound: On</button>
   </div>
   <div class="levels">
 __LEVELS__
@@ -222,6 +288,18 @@ __LEVELS__
     <img class="mascot" src="assets/mascot.png" alt="">
   </div>
 </main>
+__JINGLE_JS__
+<script>
+  // The jingle plays until a level is chosen (leaving the page stops it). Sound starts at the first click or key press.
+  BobSound.start();
+  const soundBtn = document.getElementById('sound-btn');
+  soundBtn.addEventListener('click', () => {
+    const on = soundBtn.getAttribute('aria-pressed') !== 'true';
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.textContent = on ? 'Sound: On' : 'Sound: Off';
+    BobSound.setEnabled(on);
+  });
+</script>
 </body>
 </html>
 """
@@ -241,7 +319,8 @@ def build_landing(built, pending):
         )
     page = (LANDING.replace("__LEVELS__", "\n".join(rows))
             .replace("__SIDE_BOOKS_CSS__", side_books_css())
-            .replace("__SIDE_BOOKS_HTML__", SIDE_BOOKS_HTML))
+            .replace("__SIDE_BOOKS_HTML__", SIDE_BOOKS_HTML)
+            .replace("__JINGLE_JS__", JINGLE_JS))
     (HERE / "index.html").write_text(page, encoding="utf-8")
 
 
