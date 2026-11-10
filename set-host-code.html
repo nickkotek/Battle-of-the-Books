@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set the teacher code</title>
+<style>body{margin:0;padding:24px;background:#0b0b0b;color:#fff6cc;font:17px/1.5 "Segoe UI",system-ui,sans-serif}main{max-width:680px;margin:0 auto;display:grid;gap:16px}
+input,button,textarea{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #3d3920;background:#1b1a14;color:#fff6cc;width:100%}
+button{background:#ffd60a;color:#0b0b0b;font-weight:800;cursor:pointer;border:0}textarea{min-height:130px;font-family:monospace;font-size:.9rem}p{margin:0;color:#c2b88c}</style></head>
+<body><main>
+<h1>Set the teacher code</h1>
+<p>Choose a code that teachers type to host a live game. Use a long phrase (12 or more characters), not a short word. This page works entirely in your browser; the code you type is never sent anywhere or saved.</p>
+<label>Teacher code<input type="password" id="code" autocomplete="off" spellcheck="false"></label>
+<button id="go" type="button">Create the code settings</button>
+<p id="out-help" hidden>Open <b>supabase-config.json</b> on GitHub, click the pencil icon, replace everything with the text below (keeping your url and anonKey as they are), and commit. The game updates within a couple of minutes. Only a scrambled version of your code is stored, never the code itself.</p>
+<textarea id="out" readonly hidden></textarea>
+</main>
+<script>
+document.getElementById('go').addEventListener('click', async () => {
+  const code = document.getElementById('code').value.trim();
+  if (code.length < 8) { alert('Please use at least 8 characters (12 or more is better).'); return; }
+  const enc = new TextEncoder(), iterations = 200000;
+  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  const key = await crypto.subtle.importKey('raw', enc.encode(code), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations }, key, 256);
+  const hash = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('');
+  const text = JSON.stringify({ url: 'https://ykcgsxsmdwhlecgcldla.supabase.co', anonKey: 'sb_publishable_-t3vhRDu-BTglob1Zp4idg_pIhKIhBD', hostCode: { salt, hash, iterations } }, null, 2) + '\n';
+  const out = document.getElementById('out'); out.value = text; out.hidden = false; document.getElementById('out-help').hidden = false;
+});
+</script></body></html>

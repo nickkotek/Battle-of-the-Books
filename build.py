@@ -98,7 +98,11 @@ def live_config():
         cfg = json.loads(LIVE_CONFIG.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         cfg = {}
-    return {"url": str(cfg.get("url", "")).strip().rstrip("/"), "anonKey": str(cfg.get("anonKey", "")).strip()}
+    out = {"url": str(cfg.get("url", "")).strip().rstrip("/"), "anonKey": str(cfg.get("anonKey", "")).strip()}
+    hc = cfg.get("hostCode") or {}
+    if hc.get("hash") and hc.get("salt"):  # only a salted hash of the teacher code is ever published
+        out["hostCode"] = {"salt": str(hc["salt"]), "hash": str(hc["hash"]), "iterations": int(hc.get("iterations") or 200000)}
+    return out
 
 
 def build_level(level_dir, template, live_template=None):
