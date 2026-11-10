@@ -233,6 +233,7 @@ body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); fo
 main { max-width: 720px; margin: 0 auto; display: grid; gap: 24px; }
 h1 { margin: 0; font-size: 2rem; line-height: 1.15; }
 p { margin: 0; color: var(--muted); }
+.disclaimer { font-size: 0.85rem; font-style: italic; }
 .levels { display: grid; gap: 14px; }
 a.level { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 22px; border-radius: 16px; background: var(--card); color: var(--fg); text-decoration: none; border: 2px solid var(--line); }
 a.level:hover, a.level:focus-visible { border-color: var(--accent); }
@@ -266,6 +267,7 @@ __SIDE_BOOKS_HTML__
 __LEVELS__
   </div>
   <p>Each game draws its questions at random from that school's current question spreadsheet.</p>
+  <p class="disclaimer">This program was coded from an idea using Claude AI. The code has not been reviewed by a professional programmer and is intended only to be used for classroom instructional purposes and practicing Battle of the Books question sets.</p>
   <div class="hero" aria-hidden="true">
     <div class="books">
       <svg viewBox="0 0 320 190">
