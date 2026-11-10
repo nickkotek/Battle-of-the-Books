@@ -267,7 +267,7 @@ __SIDE_BOOKS_HTML__
 __LEVELS__
   </div>
   <p>Each game draws its questions at random from that school's current question spreadsheet.</p>
-  <p class="disclaimer">This program was coded from an idea using Claude AI. The code has not been reviewed by a professional programmer and is intended only to be used for classroom instructional purposes and practicing Battle of the Books question sets.</p>
+  <p class="disclaimer">This program was coded from an idea using Claude Code. The code has not been reviewed by a professional programmer and is intended only to be used for classroom instructional purposes and practicing Battle of the Books question sets.</p>
   <div class="hero" aria-hidden="true">
     <div class="books">
       <svg viewBox="0 0 320 190">
