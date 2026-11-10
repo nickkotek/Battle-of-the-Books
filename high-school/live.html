@@ -296,17 +296,6 @@ input.code-input { text-transform: uppercase; letter-spacing: 0.2em; font-weight
       <p class="muted small" id="setup-warning" hidden></p>
     </section>
 
-    <!-- Host: teacher code -->
-    <section id="v-hostcode" class="card stack" hidden>
-      <h2>Teacher code</h2>
-      <p class="muted">Enter the teacher code to host a game.</p>
-      <div class="field"><label class="eyebrow" for="host-code-input">Teacher code</label><input type="password" id="host-code-input" autocomplete="off" spellcheck="false"></div>
-      <div class="row between">
-        <button class="btn ghost" type="button" id="hostcode-back">Back</button>
-        <button class="btn primary big" type="button" id="hostcode-go">Continue</button>
-      </div>
-    </section>
-
     <!-- Team: join form -->
     <section id="v-join" class="card stack" hidden>
       <h2>Join a game</h2>
@@ -501,7 +490,7 @@ const LIVE_CONFIG = {"url": "https://ykcgsxsmdwhlecgcldla.supabase.co", "anonKey
   }
 
   // ---------- Small helpers ----------
-  const VIEWS = ['v-start', 'v-hostcode', 'v-join', 'v-lobby', 'v-host', 'v-final', 'v-team'];
+  const VIEWS = ['v-start', 'v-join', 'v-lobby', 'v-host', 'v-final', 'v-team'];
   function show(id) { for (const v of VIEWS) $(v).hidden = v !== id; }
   function notice(msg) { const n = $('notice'); n.textContent = msg || ''; n.hidden = !msg; }
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -946,34 +935,7 @@ const LIVE_CONFIG = {"url": "https://ykcgsxsmdwhlecgcldla.supabase.co", "anonKey
       : 'Live games are not switched on yet: the Supabase connection details have not been added to this site.';
     $('pick-host').disabled = true; $('pick-join').disabled = true;
   }
-  // Teacher code: only the salted PBKDF2 hash is stored in this page (see set-host-code.html).
-  const HOST_CODE = LIVE_CONFIG && LIVE_CONFIG.hostCode && LIVE_CONFIG.hostCode.hash ? LIVE_CONFIG.hostCode : null;
-  async function checkHostCode(code) {
-    if (!HOST_CODE || !(window.crypto && crypto.subtle)) return false;
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode(code.trim()), 'PBKDF2', false, ['deriveBits']);
-    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(HOST_CODE.salt), iterations: HOST_CODE.iterations || 200000 }, key, 256);
-    const hex = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('');
-    return hex === HOST_CODE.hash;
-  }
-  function hostUnlocked() { try { return sessionStorage.getItem('bob-live-host') === '1'; } catch (e) { return false; } }
-  $('pick-host').addEventListener('click', () => {
-    if (!HOST_CODE) return notice('Hosting is locked until a teacher code is set up. Ask the site owner to create one with set-host-code.html.');
-    if (hostUnlocked()) return startHosting();
-    notice(''); show('v-hostcode'); $('host-code-input').focus();
-  });
-  async function submitHostCode() {
-    const btn = $('hostcode-go'); btn.disabled = true;
-    let ok = false;
-    try { ok = await checkHostCode($('host-code-input').value); } catch (e) { ok = false; }
-    btn.disabled = false;
-    if (!ok) { $('host-code-input').value = ''; return notice('That teacher code is not correct.'); }
-    try { sessionStorage.setItem('bob-live-host', '1'); } catch (e) { /* ignore */ }
-    startHosting();
-  }
-  $('hostcode-go').addEventListener('click', submitHostCode);
-  $('host-code-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitHostCode(); });
-  $('hostcode-back').addEventListener('click', () => { notice(''); show('v-start'); });
+  $('pick-host').addEventListener('click', startHosting);
   $('pick-join').addEventListener('click', () => { notice(''); show('v-join'); $('join-code').focus(); });
   $('join-back').addEventListener('click', () => { notice(''); show('v-start'); });
   $('join-go').addEventListener('click', joinGame);
