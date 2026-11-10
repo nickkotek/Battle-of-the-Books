@@ -68,6 +68,26 @@ fourth level, create a new folder with a `config.json` and a `data/` folder.
 Keyboard: Enter checks or advances; in flash-card mode Space flips the card and
 the arrow keys move between cards.
 
+## Live classroom game (teams join with a code)
+
+Each level also has a `live.html` page (linked from the setup screen as **Live classroom
+game**). The teacher chooses **Host a game** and shows the screen; each team chooses
+**Join a game** on a Chromebook or phone and enters the 5-letter code. All teams answer
+every question at the same time (multiple choice or typed, 30 seconds), and the host
+screen reveals the answers and scoreboard after each question. Answers are only ever
+checked on the host's device, so team devices never receive the correct answer early.
+
+It uses Supabase Realtime (broadcast only; no database tables are needed). To switch it on,
+put your project's URL and anon/publishable key in `supabase-config.json`:
+
+```json
+{ "url": "https://YOUR-PROJECT.supabase.co", "anonKey": "YOUR-ANON-KEY" }
+```
+
+That key is meant to be public. Never put the `service_role` key there. The host's device
+runs the game, so if the host closes or refreshes the page, that game ends. Teams that
+refresh rejoin automatically. The page is generated from `live-template.html`.
+
 ## Building by hand
 
 ```bash

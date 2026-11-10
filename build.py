@@ -38,6 +38,8 @@ except ImportError:  # pragma: no cover
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
+LIVE_TEMPLATE = HERE / "live-template.html"
+LIVE_CONFIG = HERE / "supabase-config.json"
 START, END = "/*QUESTIONS_START*/", "/*QUESTIONS_END*/"
 
 
@@ -90,7 +92,16 @@ def pick_spreadsheet(level_dir):
     return files[0]
 
 
-def build_level(level_dir, template):
+def live_config():
+    """Public Supabase connection details (project URL + anon/publishable key) for the live classroom game."""
+    try:
+        cfg = json.loads(LIVE_CONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cfg = {}
+    return {"url": str(cfg.get("url", "")).strip().rstrip("/"), "anonKey": str(cfg.get("anonKey", "")).strip()}
+
+
+def build_level(level_dir, template, live_template=None):
     config = json.loads((level_dir / "config.json").read_text(encoding="utf-8"))
     name = config.get("name") or level_dir.name.replace("-", " ").title()
     xlsx = pick_spreadsheet(level_dir)
@@ -113,6 +124,19 @@ def build_level(level_dir, template):
             .replace("{{SIDE_BOOKS_HTML}}", SIDE_BOOKS_HTML)
             .replace("{{JINGLE_JS}}", JINGLE_JS))
     (level_dir / "index.html").write_text(page, encoding="utf-8")
+    if live_template is not None:
+        base_css = re.search(r"<style>(.*?)\{\{SIDE_BOOKS_CSS\}\}</style>", template, re.S).group(1)
+        live = (live_template.replace("{{BASE_CSS}}", base_css)
+                .replace("{{LIVE_CONFIG}}", json.dumps(live_config()).replace("</", "<\\/")))
+        live = live[:live.index(START) + len(START)] + payload + live[live.index(END):]
+        live = (live
+                .replace("{{GAME_NAME}}", html.escape(name))
+                .replace("{{SLUG}}", level_dir.name)
+                .replace("{{SOURCE_FILE}}", html.escape(xlsx.name))
+                .replace("{{BUILD_DATE}}", dt.date.today().isoformat())
+                .replace("{{SIDE_BOOKS_CSS}}", side_books_css())
+                .replace("{{SIDE_BOOKS_HTML}}", SIDE_BOOKS_HTML))
+        (level_dir / "live.html").write_text(live, encoding="utf-8")
     (level_dir / "questions.json").write_text(json.dumps(questions, ensure_ascii=False, indent=1), encoding="utf-8")
 
     books = {(x["title"], x["author"]) for x in questions}
@@ -328,6 +352,7 @@ def build_landing(built, pending):
 
 def main():
     template = TEMPLATE.read_text(encoding="utf-8")
+    live_template = LIVE_TEMPLATE.read_text(encoding="utf-8")
     only = set(sys.argv[1:])
     levels = sorted(p.parent for p in HERE.glob("*/config.json"))
     if only:
@@ -336,7 +361,7 @@ def main():
             sys.exit(f"No level folder matches {', '.join(sorted(only))}")
     built, pending = [], []
     for level_dir in levels:
-        result = build_level(level_dir, template)
+        result = build_level(level_dir, template, live_template)
         if result:
             built.append(result)
         else:
