@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{GAME_NAME}}: Live classroom game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+{{BASE_CSS}}
+/* Live classroom game additions */
+.code-big { font-family: var(--display); font-weight: 800; font-size: clamp(3rem, 14vw, 6rem); letter-spacing: 0.12em; color: var(--accent); line-height: 1; text-align: center; }
+.team-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.team-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 2px solid var(--team); background: var(--card); font-weight: 800; }
+.team-chip.done { background: var(--team); color: #0b0b0b; }
+input.code-input { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 800; font-size: 1.6rem; text-align: center; }
+.notice { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--bad); background: var(--bad-soft); font-weight: 600; }
+.wait { text-align: center; display: grid; gap: 8px; padding: 24px 8px; }
+.wait .big-text { font-family: var(--display); font-size: 1.6rem; font-weight: 800; }
+.host-q { font-size: clamp(1.6rem, 3.4vw, 2.2rem); }
+.team-note { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+.team-note .dot { width: 14px; height: 14px; border-radius: 4px; background: var(--team); }
+.per-team { display: grid; gap: 8px; }
+.per-team .board-row small { color: var(--muted); font-weight: 600; margin-left: 6px; }
+{{SIDE_BOOKS_CSS}}</style>
+</head>
+<body>
+{{SIDE_BOOKS_HTML}}
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>{{GAME_NAME}}</h1>
+      <p class="muted small">Live classroom game</p>
+    </div>
+    <div class="row">
+      <div class="status" id="status" hidden></div>
+      <a class="chip tool" id="exit-link" href="index.html" style="text-decoration:none">Back to practice game</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="notice" id="notice" hidden role="alert"></div>
+
+    <!-- Choose role -->
+    <section id="v-start" class="card stack">
+      <div class="stack" style="gap:6px">
+        <h2>Play together, on separate devices</h2>
+        <p class="muted">The teacher hosts a game and shows the screen. Each team joins from a Chromebook or phone with a short code.</p>
+      </div>
+      <div class="modes" style="grid-template-columns: repeat(2, 1fr)">
+        <button class="mode" type="button" id="pick-host"><strong>Host a game</strong><span>Teacher: get a join code and run the questions.</span></button>
+        <button class="mode" type="button" id="pick-join"><strong>Join a game</strong><span>Team: enter the code from the teacher’s screen.</span></button>
+      </div>
+      <p class="muted small" id="setup-warning" hidden></p>
+    </section>
+
+    <!-- Team: join form -->
+    <section id="v-join" class="card stack" hidden>
+      <h2>Join a game</h2>
+      <div class="field"><label class="eyebrow" for="join-code">Game code</label><input type="text" id="join-code" class="code-input" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE"></div>
+      <div class="field"><label class="eyebrow" for="join-name">Team name</label><input type="text" id="join-name" maxlength="20" autocomplete="off" placeholder="Use a team name, not a real name"></div>
+      <div class="row between">
+        <button class="btn ghost" type="button" id="join-back">Back</button>
+        <button class="btn primary big" type="button" id="join-go">Join</button>
+      </div>
+    </section>
+
+    <!-- Host: lobby -->
+    <section id="v-lobby" class="card stack" hidden>
+      <div class="stack" style="gap:6px">
+        <span class="eyebrow">Teams join at this page with the code</span>
+        <div class="code-big" id="lobby-code" aria-live="polite">-----</div>
+        <p class="muted small" style="text-align:center" id="lobby-url"></p>
+      </div>
+      <div class="field"><span class="eyebrow">Teams joined</span><div class="team-chips" id="lobby-teams"><span class="muted">Waiting for teams…</span></div></div>
+      <div class="field">
+        <span class="eyebrow">How many questions?</span>
+        <div class="seg" id="count-picker" role="group" aria-label="Number of questions">
+          <button type="button" data-count="5" aria-pressed="false">5</button>
+          <button type="button" data-count="10" aria-pressed="true">10</button>
+          <button type="button" data-count="20" aria-pressed="false">20</button>
+          <button type="button" data-count="25" aria-pressed="false">25</button>
+          <button type="button" data-count="50" aria-pressed="false">50</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="eyebrow">Answer style</span>
+        <div class="seg" id="style-picker" role="group" aria-label="Answer style">
+          <button type="button" data-style="choice" aria-pressed="true">Multiple choice</button>
+          <button type="button" data-style="typed" aria-pressed="false">Type it in</button>
+        </div>
+      </div>
+      <p class="muted small">Every team answers every question at the same time. 1 point for the title and 1 for the author, 30 seconds per question.</p>
+      <div class="row between">
+        <button class="btn ghost" type="button" id="lobby-cancel">Cancel game</button>
+        <button class="btn primary big" type="button" id="lobby-start" disabled>Start game</button>
+      </div>
+    </section>
+
+    <!-- Host: question / reveal -->
+    <section id="v-host" class="card stack" hidden>
+      <div class="row between">
+        <span class="eyebrow" id="host-counter"></span>
+        <div id="host-timer-slot"></div>
+        <span class="eyebrow" id="host-code"></span>
+      </div>
+      <div class="progress"><div id="host-bar"></div></div>
+      <p class="question host-q" id="host-question"></p>
+      <div class="field" id="host-wait"><span class="eyebrow" id="host-answered"></span><div class="team-chips" id="host-chips"></div></div>
+      <div class="stack" id="host-reveal" hidden>
+        <div class="verdict ok"><div><span class="mark">Title:</span> <b id="rv-title"></b></div><div><span class="mark">Author:</span> <b id="rv-author"></b></div></div>
+        <div class="per-team" id="rv-teams"></div>
+      </div>
+      <div class="row between">
+        <button class="btn ghost" type="button" id="host-end">End game</button>
+        <div class="row">
+          <button class="btn" type="button" id="host-skip">Reveal answers now</button>
+          <button class="btn primary" type="button" id="host-next" hidden>Next question</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Host: final -->
+    <section id="v-final" class="card stack" hidden>
+      <div class="stack" style="gap:6px"><span class="eyebrow">Game over</span><h2 id="final-heading">Final scores</h2></div>
+      <div class="board" id="final-board"></div>
+      <div class="stack" id="final-missed-wrap" hidden>
+        <span class="eyebrow">Questions to review (fewer than half the teams got both right)</span>
+        <div class="missed" id="final-missed"></div>
+      </div>
+      <div class="row"><button class="btn primary big" type="button" id="final-again">Host a new game</button></div>
+    </section>
+
+    <!-- Team screens -->
+    <section id="v-team" class="card stack" hidden>
+      <div class="row between">
+        <span class="team-note" id="team-note"></span>
+        <div id="team-timer-slot"></div>
+        <span class="eyebrow" id="team-counter"></span>
+      </div>
+      <div id="team-body" class="stack"></div>
+    </section>
+  </main>
+
+  <footer>Question bank from {{SOURCE_FILE}}, rebuilt {{BUILD_DATE}}. Please use team names, not students’ real names.</footer>
+</div>
+
+<script>
+const QUESTIONS = /*QUESTIONS_START*/[]/*QUESTIONS_END*/;
+const LIVE_CONFIG = {{LIVE_CONFIG}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+  const SLUG = '{{SLUG}}';
+  const $ = id => document.getElementById(id);
+  const QMS = 30000;          // time per question
+  const GRACE = 1500;         // extra wait after the clock for late answers to arrive
+  const MAX_TEAMS = 12;
+  const COLORS = ['#6aa5f5', '#f06595', '#69db7c', '#b197fc', '#ffa94d', '#3bc9db', '#ffe066', '#ff8787'];
+
+  // ---------- Question bank and answer matching (same rules as the practice game) ----------
+  const TITLES = [...new Set(QUESTIONS.map(q => q.title))];
+  const AUTHORS = [...new Set(QUESTIONS.map(q => q.author))];
+  function randInt(n) {
+    if (window.crypto && crypto.getRandomValues) {
+      const buf = new Uint32Array(1);
+      const limit = Math.floor(0x100000000 / n) * n;
+      let x;
+      do { crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+      return x % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = randInt(i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
+  function newOrder(count) {
+    let past = [];
+    try { past = JSON.parse(localStorage.getItem('bob-past-sequences-' + SLUG) || '[]'); } catch (e) { past = []; }
+    const pool = QUESTIONS.map((_, i) => i);
+    let order, key, tries = 0;
+    do {
+      order = shuffle(pool.slice()).slice(0, Math.min(count, pool.length));
+      key = order.join(',');
+      tries++;
+    } while (past.includes(key) && tries < 25);
+    past.push(key);
+    if (past.length > 400) past = past.slice(-400);
+    try { localStorage.setItem('bob-past-sequences-' + SLUG, JSON.stringify(past)); } catch (e) { /* storage unavailable */ }
+    return order;
+  }
+  function pickOptions(correct, pool, n) {
+    const others = shuffle(pool.filter(v => v !== correct)).slice(0, n - 1);
+    return shuffle([correct, ...others]);
+  }
+  function norm(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/&/g, 'and').replace(/[’'"“”!?.,:;()\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function stripThe(s) { return s.replace(/^(the|a|an) /, ''); }
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function close(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    return levenshtein(a, b) <= Math.max(1, Math.floor(b.length * 0.2));
+  }
+  function titleMatches(input, title) {
+    const a = stripThe(norm(input));
+    if (!a) return false;
+    return close(a, stripThe(norm(title))) || close(a, stripThe(norm(title.split(':')[0])));
+  }
+  function authorMatches(input, author) {
+    const a = norm(input);
+    if (!a) return false;
+    const full = norm(author), parts = full.split(' '), last = parts[parts.length - 1];
+    if (a === full || a === last) return true;
+    if (levenshtein(a, full) <= 2) return true;
+    if (last.length >= 4 && levenshtein(a, last) <= 1) return true;
+    return a === parts.slice().reverse().join(' ');
+  }
+
+  // ---------- Small helpers ----------
+  const VIEWS = ['v-start', 'v-join', 'v-lobby', 'v-host', 'v-final', 'v-team'];
+  function show(id) { for (const v of VIEWS) $(v).hidden = v !== id; }
+  function notice(msg) { const n = $('notice'); n.textContent = msg || ''; n.hidden = !msg; }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pressGroup(container, attr, value) {
+    for (const b of container.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset[attr] === String(value)));
+  }
+  function teamColor(i) { return COLORS[i % COLORS.length]; }
+  function chip(team, done) {
+    const c = el('span', 'team-chip' + (done ? ' done' : ''), team.name);
+    c.style.setProperty('--team', team.color);
+    return c;
+  }
+  function makeTimer() {
+    const wrap = el('div', 'timer');
+    wrap.setAttribute('role', 'timer');
+    wrap.innerHTML = '<svg viewBox="0 0 44 44" aria-hidden="true"><circle class="track" cx="22" cy="22" r="19"/><circle class="ring" cx="22" cy="22" r="19"/></svg><span class="num">30</span>';
+    const ring = wrap.querySelector('.ring'), num = wrap.querySelector('.num');
+    return {
+      el: wrap,
+      set(ms) {
+        const left = Math.max(0, ms);
+        num.textContent = Math.ceil(left / 1000);
+        ring.style.strokeDashoffset = String(119.4 * (1 - Math.min(1, left / QMS)));
+        wrap.classList.toggle('urgent', left <= 10000 && left > 0);
+        wrap.classList.toggle('done', left <= 0);
+      }
+    };
+  }
+  function pointsFor(r) { return (r.tOk ? 1 : 0) + (r.aOk ? 1 : 0); }
+  function verdictBox(label, ok, correct, given) {
+    const d = el('div', 'verdict ' + (ok ? 'ok' : 'miss'));
+    const head = el('div'); head.append(el('span', 'mark', ok ? '✓' : '✗'), ` ${label}: ${ok ? 'correct' : 'not quite'}`);
+    d.append(head);
+    if (!ok) {
+      let line = `Correct answer: ${correct}`;
+      if (given && String(given).trim()) line += ` · You said: ${String(given).trim()}`;
+      d.append(el('div', 'small', line));
+    }
+    return d;
+  }
+
+  // ---------- Realtime connection (Supabase Realtime broadcast: no database tables needed) ----------
+  const configured = !!(LIVE_CONFIG && LIVE_CONFIG.url && LIVE_CONFIG.anonKey && window.supabase);
+  let client = null, channel = null;
+  function connect(code, onMessage, onStatus) {
+    if (!client) client = window.supabase.createClient(LIVE_CONFIG.url, LIVE_CONFIG.anonKey, { realtime: { params: { eventsPerSecond: 10 } } });
+    channel = client.channel('bob-' + SLUG + '-' + code, { config: { broadcast: { self: false } } });
+    channel.on('broadcast', { event: 'm' }, ({ payload }) => { try { onMessage(payload); } catch (e) { console.error(e); } });
+    channel.subscribe(onStatus);
+  }
+  function send(payload) { if (channel) channel.send({ type: 'broadcast', event: 'm', payload }); }
+  function disconnect() { if (channel && client) { client.removeChannel(channel); } channel = null; }
+  function makeCode() {
+    const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let c = ''; for (let i = 0; i < 5; i++) c += letters[randInt(letters.length)];
+    return c;
+  }
+
+  // =====================================================================
+  // HOST
+  // =====================================================================
+  const H = { code: null, teams: [], settings: { count: 10, style: 'choice' }, phase: 'lobby', order: [], qi: 0, q: null, opts: null, answers: {}, endsAt: 0, reveal: null, results: [], tick: null, beat: null };
+  const hostTimer = makeTimer();
+
+  function hostState() {
+    const m = {
+      t: 'state', code: H.code, phase: H.phase, style: H.settings.style,
+      teams: H.teams.map(t => ({ id: t.id, name: t.name, color: t.color, score: t.score, done: !!H.answers[t.id] }))
+    };
+    if (H.phase === 'question') {
+      m.q = { qi: H.qi, total: H.order.length, text: H.q.q, titleOpts: H.opts && H.opts.title, authorOpts: H.opts && H.opts.author, remaining: Math.max(0, H.endsAt - Date.now()) };
+    } else if (H.phase === 'reveal') {
+      m.q = { qi: H.qi, total: H.order.length, text: H.q.q };
+      m.reveal = H.reveal;
+    }
+    return m;
+  }
+  function broadcast() { send(hostState()); }
+
+  function startHosting() {
+    notice('');
+    H.code = makeCode(); H.teams = []; H.phase = 'lobby'; H.results = []; H.answers = {};
+    $('lobby-code').textContent = '·····';
+    $('lobby-start').disabled = true;
+    renderLobbyTeams();
+    show('v-lobby');
+    connect(H.code, hostMessage, status => {
+      if (status === 'SUBSCRIBED') {
+        $('lobby-code').textContent = H.code;
+        $('lobby-url').textContent = 'Students open ' + location.href.split('#')[0].split('?')[0] + ' and choose “Join a game”.';
+        clearInterval(H.beat);
+        H.beat = setInterval(broadcast, 4000); // heartbeat so devices that missed a message catch up
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        notice('Could not connect to the game server. Check the internet connection (and that the school filter allows supabase.co), then try again.');
+      }
+    });
+  }
+  function hostMessage(p) {
+    if (!p || typeof p !== 'object') return;
+    if (p.t === 'join') {
+      let team = H.teams.find(t => t.id === p.id);
+      if (!team && H.phase === 'lobby' && H.teams.length < MAX_TEAMS) {
+        let name = String(p.name || '').replace(/\s+/g, ' ').trim().slice(0, 20) || 'Team';
+        const base = name; let n = 2;
+        while (H.teams.some(t => t.name.toLowerCase() === name.toLowerCase())) name = `${base} ${n++}`;
+        team = { id: String(p.id).slice(0, 40), name, color: teamColor(H.teams.length), score: 0 };
+        H.teams.push(team);
+        renderLobbyTeams();
+      }
+      broadcast();
+    } else if (p.t === 'hello') {
+      broadcast();
+    } else if (p.t === 'answer') {
+      if (H.phase !== 'question' || p.qi !== H.qi || H.answers[p.id] || !H.teams.some(t => t.id === p.id)) return;
+      H.answers[p.id] = { title: String(p.title || '').slice(0, 200), author: String(p.author || '').slice(0, 200) };
+      renderHostQuestion();
+      if (H.teams.every(t => H.answers[t.id])) reveal();
+      else broadcast();
+    }
+  }
+  function renderLobbyTeams() {
+    const box = $('lobby-teams'); box.innerHTML = '';
+    if (!H.teams.length) box.append(el('span', 'muted', 'Waiting for teams…'));
+    for (const t of H.teams) box.append(chip(t, false));
+    $('lobby-start').disabled = H.teams.length < 1 || !H.code;
+  }
+  function startGame() {
+    if (!H.teams.length) return;
+    H.order = newOrder(H.settings.count);
+    H.qi = 0; H.results = [];
+    for (const t of H.teams) t.score = 0;
+    askQuestion();
+    clearInterval(H.tick);
+    H.tick = setInterval(hostTick, 250);
+  }
+  function askQuestion() {
+    H.q = QUESTIONS[H.order[H.qi]];
+    H.opts = H.settings.style === 'choice'
+      ? { title: pickOptions(H.q.title, TITLES, Math.min(4, TITLES.length)), author: pickOptions(H.q.author, AUTHORS, Math.min(4, AUTHORS.length)) }
+      : null;
+    H.answers = {}; H.reveal = null; H.phase = 'question'; H.endsAt = Date.now() + QMS;
+    broadcast(); renderHostQuestion();
+  }
+  function hostTick() {
+    if (H.phase !== 'question') return;
+    const left = H.endsAt - Date.now();
+    hostTimer.set(left);
+    if (left <= -GRACE) reveal();
+  }
+  function reveal() {
+    if (H.phase !== 'question') return;
+    const q = H.q, per = {};
+    for (const t of H.teams) {
+      const a = H.answers[t.id] || { title: '', author: '' };
+      const choice = H.settings.style === 'choice';
+      const tOk = choice ? a.title === q.title : titleMatches(a.title, q.title);
+      const aOk = choice ? a.author === q.author : authorMatches(a.author, q.author);
+      per[t.id] = { tOk, aOk, tGiven: a.title, aGiven: a.author, none: !H.answers[t.id] };
+      t.score += (tOk ? 1 : 0) + (aOk ? 1 : 0);
+    }
+    H.reveal = { title: q.title, author: q.author, per };
+    H.results.push({ q, per });
+    H.phase = 'reveal';
+    broadcast(); renderHostQuestion();
+  }
+  function nextQuestion() {
+    if (H.phase !== 'reveal') return;
+    if (H.qi + 1 >= H.order.length) return finishGame();
+    H.qi++; askQuestion();
+  }
+  function finishGame() {
+    clearInterval(H.tick);
+    H.phase = 'end';
+    broadcast();
+    renderFinal();
+  }
+  function renderHostQuestion() {
+    show('v-host');
+    const n = H.order.length;
+    $('host-counter').textContent = `Question ${H.qi + 1} of ${n}`;
+    $('host-code').textContent = `Code ${H.code}`;
+    $('host-bar').style.width = `${((H.qi + (H.phase === 'reveal' ? 1 : 0)) / n) * 100}%`;
+    $('host-question').textContent = H.q.q;
+    const slot = $('host-timer-slot');
+    if (!slot.contains(hostTimer.el)) slot.append(hostTimer.el);
+    const questionPhase = H.phase === 'question';
+    $('host-wait').hidden = !questionPhase;
+    $('host-reveal').hidden = questionPhase;
+    $('host-skip').hidden = !questionPhase;
+    $('host-next').hidden = questionPhase;
+    hostTimer.el.hidden = !questionPhase;
+    if (questionPhase) {
+      const done = H.teams.filter(t => H.answers[t.id]).length;
+      $('host-answered').textContent = `${done} of ${H.teams.length} teams have answered`;
+      const box = $('host-chips'); box.innerHTML = '';
+      for (const t of H.teams) box.append(chip(t, !!H.answers[t.id]));
+      hostTimer.set(H.endsAt - Date.now());
+    } else {
+      $('rv-title').textContent = H.reveal.title;
+      $('rv-author').textContent = H.reveal.author;
+      const list = $('rv-teams'); list.innerHTML = '';
+      const ranked = H.teams.slice().sort((a, b) => b.score - a.score);
+      for (const t of ranked) {
+        const r = H.reveal.per[t.id];
+        const row = el('div', 'board-row');
+        const dot = el('span', 'dot'); row.style.setProperty('--team', t.color);
+        const label = el('span', null, t.name);
+        const detail = el('small', null, r.none ? 'no answer' : `title ${r.tOk ? '✓' : '✗'} · author ${r.aOk ? '✓' : '✗'}`);
+        label.append(detail);
+        row.append(dot, label, el('b', null, String(t.score)));
+        list.append(row);
+      }
+      $('host-next').textContent = H.qi + 1 >= H.order.length ? 'See final scores' : 'Next question';
+      $('host-next').focus();
+    }
+  }
+  function renderFinal() {
+    show('v-final');
+    const ranked = H.teams.slice().sort((a, b) => b.score - a.score);
+    const top = ranked.length ? ranked[0].score : 0;
+    const box = $('final-board'); box.innerHTML = '';
+    for (const t of ranked) {
+      const row = el('div', 'board-row' + (t.score === top && top > 0 ? ' winner' : ''));
+      row.style.setProperty('--team', t.color);
+      row.append(el('span', 'dot'), el('span', null, t.name + (t.score === top && top > 0 ? ' 🏆' : '')), el('b', null, `${t.score} / ${H.results.length * 2}`));
+      box.append(row);
+    }
+    const missed = H.results.filter(r => {
+      const teams = Object.values(r.per);
+      return teams.filter(x => x.tOk && x.aOk).length * 2 < teams.length;
+    });
+    $('final-missed-wrap').hidden = !missed.length;
+    const list = $('final-missed'); list.innerHTML = '';
+    for (const r of missed) {
+      const item = el('div', 'missed-item');
+      item.append(el('div', 'q', r.q.q), el('div', 'small', `Title: ${r.q.title} · Author: ${r.q.author}`));
+      list.append(item);
+    }
+  }
+  function endHosting() {
+    clearInterval(H.tick); clearInterval(H.beat);
+    if (channel && H.phase !== 'end') { H.phase = 'end'; broadcast(); }
+    disconnect();
+    location.reload();
+  }
+
+  // =====================================================================
+  // TEAM
+  // =====================================================================
+  const T = { id: null, name: '', code: '', state: null, view: null, endsAt: 0, submitted: false, sentAt: 0, picks: {}, autoSent: false, joinTimer: null, tick: null };
+  const teamTimer = makeTimer();
+
+  function teamId() {
+    let id = null;
+    try { id = sessionStorage.getItem('bob-live-id'); } catch (e) { /* ignore */ }
+    if (!id) {
+      id = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
+      try { sessionStorage.setItem('bob-live-id', id); } catch (e) { /* ignore */ }
+    }
+    return id;
+  }
+  function joinGame() {
+    const code = $('join-code').value.trim().toUpperCase();
+    const name = $('join-name').value.replace(/\s+/g, ' ').trim();
+    if (code.length !== 5) return notice('Enter the 5-letter code shown on the teacher’s screen.');
+    if (!name) return notice('Enter a team name.');
+    notice('');
+    T.id = teamId(); T.name = name; T.code = code; T.state = null; T.view = null;
+    try { sessionStorage.setItem('bob-live-join', JSON.stringify({ code, name })); } catch (e) { /* ignore */ }
+    $('join-go').disabled = true;
+    connect(code, teamMessage, status => {
+      if (status === 'SUBSCRIBED') {
+        let tries = 0;
+        clearInterval(T.joinTimer);
+        send({ t: 'join', id: T.id, name: T.name });
+        T.joinTimer = setInterval(() => {
+          if (T.state) return clearInterval(T.joinTimer);
+          if (++tries >= 4) {
+            clearInterval(T.joinTimer);
+            disconnect();
+            $('join-go').disabled = false;
+            notice('No game found with that code. Check the code and ask your teacher if the game is open.');
+            return;
+          }
+          send({ t: 'join', id: T.id, name: T.name });
+        }, 2500);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        $('join-go').disabled = false;
+        notice('Could not connect. Check the internet connection and try again.');
+      }
+    });
+  }
+  function teamMessage(p) {
+    if (!p || p.t !== 'state' || p.code !== T.code) return;
+    T.state = p;
+    renderTeam();
+  }
+  function submitAnswer() {
+    if (T.submitted || !T.state || T.state.phase !== 'question') return;
+    const q = T.state.q;
+    let title, author;
+    if (T.state.style === 'choice') { title = T.picks.title || ''; author = T.picks.author || ''; }
+    else { title = $('team-title-input').value; author = $('team-author-input').value; }
+    T.submitted = true; T.sentAt = Date.now(); T.last = { qi: q.qi, title, author };
+    send({ t: 'answer', id: T.id, qi: q.qi, title, author });
+    lockAnswerUI();
+  }
+  function lockAnswerUI() {
+    for (const b of $('team-body').querySelectorAll('button.opt, input, #team-lock')) b.disabled = true;
+    const w = $('team-waiting'); if (w) w.hidden = false;
+  }
+  function teamTick() {
+    if (!T.state || T.state.phase !== 'question') return;
+    const left = T.endsAt - Date.now();
+    teamTimer.set(left);
+    if (left <= 0 && !T.submitted && !T.autoSent) { T.autoSent = true; submitAnswer(); } // the clock ran out: send what is selected
+  }
+  function buildQuestionUI(s) {
+    const body = $('team-body'); body.innerHTML = '';
+    T.picks = {}; T.autoSent = false; T.submitted = false;
+    body.append(el('p', 'question', s.q.text));
+    const answers = el('div', 'answers');
+    for (const kind of ['title', 'author']) {
+      const group = el('div', 'answer-group'); group.append(el('span', 'eyebrow', kind === 'title' ? 'Title' : 'Author'));
+      if (s.style === 'choice') {
+        const grid = el('div', 'options');
+        for (const o of (kind === 'title' ? s.q.titleOpts : s.q.authorOpts) || []) {
+          const b = el('button', 'opt', o); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+          b.addEventListener('click', () => {
+            if (T.submitted) return;
+            T.picks[kind] = o;
+            for (const x of grid.children) x.setAttribute('aria-pressed', String(x === b));
+            $('team-lock').disabled = !(T.picks.title && T.picks.author);
+          });
+          grid.append(b);
+        }
+        group.append(grid);
+      } else {
+        const input = el('input'); input.type = 'text'; input.id = `team-${kind}-input`; input.autocomplete = 'off'; input.spellcheck = false;
+        input.placeholder = kind === 'title' ? 'Type the book title' : 'Type the author (last name is fine)';
+        input.setAttribute('aria-label', kind === 'title' ? 'Title answer' : 'Author answer');
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (kind === 'title') $('team-author-input').focus(); else submitAnswer(); } });
+        group.append(input);
+      }
+      answers.append(group);
+    }
+    body.append(answers);
+    const lock = el('button', 'btn primary big', 'Lock in answer'); lock.type = 'button'; lock.id = 'team-lock';
+    lock.disabled = s.style === 'choice';
+    lock.addEventListener('click', submitAnswer);
+    body.append(lock);
+    const waiting = el('p', 'muted', 'Answer locked in. Waiting for the other teams…'); waiting.id = 'team-waiting'; waiting.hidden = true;
+    body.append(waiting);
+    if (s.style !== 'choice') $('team-title-input').focus();
+  }
+  function renderTeam() {
+    const s = T.state;
+    const me = s.teams.find(t => t.id === T.id);
+    show('v-team'); notice('');
+    if (!me) {
+      T.view = 'locked'; clearInterval(T.tick);
+      $('team-note').textContent = ''; $('team-counter').textContent = ''; $('team-timer-slot').innerHTML = '';
+      const body = $('team-body'); body.innerHTML = '';
+      const w = el('div', 'wait'); w.append(el('p', 'big-text', 'This game has already started'), el('p', 'muted', 'Ask your teacher to host a new game, then join again with the new code.'));
+      body.append(w);
+      return;
+    }
+    const note = $('team-note'); note.innerHTML = ''; note.style.setProperty('--team', me.color);
+    note.append(el('span', 'dot'), document.createTextNode(`${me.name} · ${me.score} pts`));
+    const body = $('team-body');
+    if (s.phase === 'lobby') {
+      if (T.view !== 'lobby') {
+        T.view = 'lobby'; clearInterval(T.tick); $('team-timer-slot').innerHTML = ''; $('team-counter').textContent = '';
+      }
+      body.innerHTML = '';
+      const w = el('div', 'wait'); w.append(el('p', 'big-text', 'You’re in!'), el('p', 'muted', 'Waiting for the teacher to start the game.'));
+      const chips = el('div', 'team-chips'); chips.style.justifyContent = 'center';
+      for (const t of s.teams) chips.append(chip(t, t.id === T.id));
+      w.append(chips); body.append(w);
+    } else if (s.phase === 'question') {
+      const key = 'q' + s.q.qi;
+      $('team-counter').textContent = `Question ${s.q.qi + 1} of ${s.q.total}`;
+      const slot = $('team-timer-slot'); if (!slot.contains(teamTimer.el)) slot.append(teamTimer.el);
+      const endsAt = Date.now() + s.q.remaining;
+      if (T.view !== key) {
+        T.view = key; T.endsAt = endsAt; buildQuestionUI(s);
+        if (me.done) { T.submitted = true; lockAnswerUI(); } // rejoined after the answer was already counted
+        clearInterval(T.tick); T.tick = setInterval(teamTick, 200);
+      } else if (Math.abs(endsAt - T.endsAt) > 1500) {
+        T.endsAt = endsAt; // resync if this device's clock drifted
+      }
+      if (T.submitted && !me.done && T.last && Date.now() - T.sentAt > 2500) { // answer may have been lost: resend
+        T.sentAt = Date.now(); send({ t: 'answer', id: T.id, qi: T.last.qi, title: T.last.title, author: T.last.author });
+      }
+      teamTick();
+    } else if (s.phase === 'reveal') {
+      const key = 'r' + s.q.qi;
+      if (T.view === key) return;
+      T.view = key; clearInterval(T.tick);
+      $('team-timer-slot').innerHTML = '';
+      $('team-counter').textContent = `Question ${s.q.qi + 1} of ${s.q.total}`;
+      const r = s.reveal.per[T.id] || { tOk: false, aOk: false, none: true };
+      body.innerHTML = '';
+      body.append(el('p', 'question', s.q.text));
+      if (r.none) body.append(el('p', 'points', 'No answer was received in time.'));
+      body.append(verdictBox('Title', r.tOk, s.reveal.title, r.tGiven), verdictBox('Author', r.aOk, s.reveal.author, r.aGiven));
+      const pts = pointsFor(r);
+      body.append(el('p', 'points', `+${pts} point${pts === 1 ? '' : 's'}`));
+      body.append(standings(s));
+      body.append(el('p', 'muted', 'Waiting for the teacher to continue…'));
+    } else if (s.phase === 'end') {
+      if (T.view === 'end') return;
+      T.view = 'end'; clearInterval(T.tick);
+      $('team-timer-slot').innerHTML = ''; $('team-counter').textContent = '';
+      body.innerHTML = '';
+      body.append(el('h2', null, 'Game over'), standings(s));
+      const again = el('button', 'btn primary big', 'Leave game'); again.type = 'button';
+      again.addEventListener('click', () => { try { sessionStorage.removeItem('bob-live-join'); } catch (e) { /* ignore */ } disconnect(); location.reload(); });
+      body.append(again);
+    }
+  }
+  function standings(s) {
+    const box = el('div', 'board');
+    const ranked = s.teams.slice().sort((a, b) => b.score - a.score);
+    const top = ranked.length ? ranked[0].score : 0;
+    for (const t of ranked) {
+      const row = el('div', 'board-row' + (t.score === top && top > 0 ? ' winner' : ''));
+      row.style.setProperty('--team', t.color);
+      row.append(el('span', 'dot'), el('span', null, t.name + (t.id === T.id ? ' (you)' : '')), el('b', null, String(t.score)));
+      box.append(row);
+    }
+    return box;
+  }
+
+  // =====================================================================
+  // Wiring
+  // =====================================================================
+  if (!configured) {
+    $('setup-warning').hidden = false;
+    $('setup-warning').textContent = LIVE_CONFIG && LIVE_CONFIG.url
+      ? 'The game server library did not load. Check the internet connection and the school web filter, then reload.'
+      : 'Live games are not switched on yet: the Supabase connection details have not been added to this site.';
+    $('pick-host').disabled = true; $('pick-join').disabled = true;
+  }
+  $('pick-host').addEventListener('click', startHosting);
+  $('pick-join').addEventListener('click', () => { notice(''); show('v-join'); $('join-code').focus(); });
+  $('join-back').addEventListener('click', () => { notice(''); show('v-start'); });
+  $('join-go').addEventListener('click', joinGame);
+  for (const id of ['join-code', 'join-name']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+  $('count-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-count]'); if (!b) return;
+    H.settings.count = Number(b.dataset.count); pressGroup($('count-picker'), 'count', H.settings.count);
+  });
+  $('style-picker').addEventListener('click', e => {
+    const b = e.target.closest('button[data-style]'); if (!b) return;
+    H.settings.style = b.dataset.style; pressGroup($('style-picker'), 'style', H.settings.style);
+  });
+  $('lobby-start').addEventListener('click', startGame);
+  $('lobby-cancel').addEventListener('click', endHosting);
+  $('host-skip').addEventListener('click', reveal);
+  $('host-next').addEventListener('click', nextQuestion);
+  $('host-end').addEventListener('click', () => { if (confirm('End the game now and show the final scores?')) finishGame(); });
+  $('final-again').addEventListener('click', endHosting);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && H.phase === 'reveal' && !$('v-host').hidden && document.activeElement === document.body) nextQuestion();
+  });
+
+  // Rejoin automatically after a page refresh during a game.
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('bob-live-join') || 'null');
+    if (configured && saved && saved.code && saved.name) {
+      $('join-code').value = saved.code; $('join-name').value = saved.name;
+      show('v-join'); joinGame();
+    }
+  } catch (e) { /* ignore */ }
+})();
+</script>
+</body>
+</html>
